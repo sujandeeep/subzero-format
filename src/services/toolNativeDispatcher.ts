@@ -37,9 +37,6 @@ export function cleanMd(str?: string): string {
 }
 
 /**
- * Normalizes any word or phrase ending with ":" into a clean column header
- */
-/**
  * Normalizes any word or phrase ending with ":" into a clean enterprise column header
  */
 export function normalizeHeader(raw: string): string {
