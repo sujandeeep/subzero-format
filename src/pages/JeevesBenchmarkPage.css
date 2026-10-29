@@ -573,6 +573,20 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+
+  /* Brand Kit dynamic custom properties with robust defaults */
+  --brand-primary: #6366f1;
+  --brand-primary-hover: #4f46e5;
+  --brand-secondary: #06b6d4;
+  --brand-accent: #a855f7;
+  --brand-card-bg: rgba(99, 102, 241, 0.12);
+  --brand-card-bg-strong: rgba(99, 102, 241, 0.24);
+  --brand-card-gradient: linear-gradient(155deg, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0.08) 35%, rgba(10, 14, 25, 0.95) 90%);
+  --brand-card-border: rgba(99, 102, 241, 0.45);
+  --brand-border-glow: rgba(99, 102, 241, 0.6);
+  --brand-ambient-glow: rgba(99, 102, 241, 0.25);
+  --brand-header-bg: linear-gradient(90deg, rgba(99, 102, 241, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%);
+  --brand-text-accent: #a5b4fc;
 }
 
 .website-browser-frame {
@@ -661,7 +675,8 @@
   flex: 1;
   overflow-y: auto;
   padding: 1.25rem 1.5rem;
-  background: #090d16;
+  background: radial-gradient(ellipse at 85% 15%, var(--brand-card-bg-strong, rgba(99, 102, 241, 0.16)) 0%, transparent 65%), #070a12;
+  transition: background 0.3s ease;
 }
 
 /* Common Real Website Navbar */
@@ -732,22 +747,24 @@
 }
 
 .btn-site-primary-sm {
-  background: #2563eb;
-  border: 1px solid #3b82f6;
+  background: var(--brand-primary, #2563eb);
+  border: 1px solid var(--brand-border-glow, #3b82f6);
   color: #fff;
   font-size: 0.74rem;
   font-weight: 600;
   padding: 0.3rem 0.65rem;
   border-radius: 6px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .btn-site-primary-sm:hover {
-  background: #1d4ed8;
+  background: var(--brand-primary-hover, #1d4ed8);
+  box-shadow: 0 2px 10px var(--brand-border-glow, rgba(37, 99, 235, 0.3));
 }
 
 .btn-site-primary {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--brand-primary, #2563eb) 0%, var(--brand-primary-hover, #1d4ed8) 100%);
   color: #fff;
   border: none;
   font-size: 0.8rem;
@@ -760,10 +777,12 @@
   justify-content: center;
   gap: 0.45rem;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 14px var(--brand-border-glow, rgba(37, 99, 235, 0.3));
 }
 
 .btn-site-primary:hover {
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 20px var(--brand-border-glow, rgba(37, 99, 235, 0.5));
+  transform: translateY(-1px);
 }
 
 .btn-site-primary.btn-submitted {
@@ -776,8 +795,8 @@
    REAL SOFTWARE CATALOG PORTAL
    ========================================================================== */
 .site-hero-banner {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(147, 51, 234, 0.1) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: linear-gradient(135deg, var(--brand-card-bg, rgba(37, 99, 235, 0.12)) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px solid var(--brand-border-glow, rgba(59, 130, 246, 0.25));
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   display: flex;
@@ -2174,4 +2193,624 @@
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
+
+/* ==========================================================================
+   STANDARD ENTERPRISE CARD WITH BRAND GUIDELINES
+   Clean, refined corporate aesthetic without neon halos or bloom effects
+   ========================================================================== */
+.brand-master-output-card {
+  background: #0f1422;
+  border: 1px solid #1e293b;
+  border-top: 3px solid var(--brand-primary);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2rem;
+  transition: border-color 0.2s ease;
+}
+
+.brand-master-output-card:hover {
+  border-color: #334155;
+  border-top-color: var(--brand-primary);
+}
+
+.brand-master-card-header {
+  background: #111827;
+  border-bottom: 1px solid #1e293b;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brand-master-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-master-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #090e17;
+  padding: 3px;
+  border: 1px solid #1e293b;
+}
+
+.brand-master-logo-fallback {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+}
+
+.brand-master-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-master-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.brand-master-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.brand-master-mediakit-pill {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.brand-master-blocktype-badge {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.brand-master-subtitle {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.1rem;
+}
+
+.brand-master-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.brand-master-swatch-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #090e17;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #1e293b;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: #e2e8f0;
+}
+
+.swatch-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-toggle-guidelines {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-guidelines:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+.btn-toggle-guidelines.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+}
+
+.btn-brand-card-change {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.btn-brand-card-change:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   OFFICIAL BRAND GUIDELINES SPEC PANEL
+   Displays exact corporate guideline specifications:
+   Color roles, Typography, WCAG contrast standards, Usage rules
+   ========================================================================== */
+.brand-guidelines-spec-panel {
+  background: #0b0f19;
+  border-bottom: 1px solid #1e293b;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: specSlideDown 0.2s ease-out;
+}
+
+@keyframes specSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.guidelines-spec-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.guidelines-spec-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f1f5f9;
+}
+
+.guidelines-spec-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.guidelines-source-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.guidelines-contrast-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+}
+
+/* Firecrawl Provenance & Intelligence Strip */
+.spec-provenance-bar {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.provenance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.provenance-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.provenance-val {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Aspect Section Container */
+.spec-aspect-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.spec-aspect-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Typography Specimen */
+.spec-typography-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.spec-pangram-box {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.spec-pangram-title {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spec-pangram-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f8fafc;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.spec-font-stack-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.spec-font-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* Color Tokens Grid */
+.guidelines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.guideline-spec-card {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.spec-card-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spec-card-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+}
+
+.spec-card-role {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Component Geometry Sandbox */
+.spec-geometry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.spec-sandbox-card {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.spec-sandbox-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.live-specimen-btn {
+  padding: 0.5rem 1.15rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.15s ease;
+}
+
+.live-specimen-btn:hover {
+  opacity: 0.9;
+}
+
+.live-specimen-input {
+  border: 1px solid #334155;
+  color: #f8fafc;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.85rem;
+  outline: none;
+  width: 100%;
+  max-width: 220px;
+}
+
+/* Rules Checklist */
+.guidelines-rules-row {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.guidelines-rules-row h5 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.guidelines-rules-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.45rem 1.25rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+
+/* Card Header Badges */
+.brand-master-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.brand-master-token-pill {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ==========================================================================
+   STANDARD CLEAN INNER CONTENT (ENFORCING BRAND FONT & PALETTE)
+   ========================================================================== */
+.brand-master-output-card {
+  font-family: var(--brand-font, 'Inter', sans-serif) !important;
+  background: var(--brand-card-surface, #111827) !important;
+  color: var(--brand-text-primary, #ffffff) !important;
+  border: 1px solid var(--brand-card-border, #1e293b) !important;
+  border-top: 4px solid var(--brand-primary) !important;
+  border-radius: var(--brand-btn-radius, 8px) !important;
+}
+
+.brand-master-output-card,
+.brand-master-output-card * {
+  font-family: var(--brand-font, 'Inter', sans-serif) !important;
+}
+
+.brand-master-output-card h1,
+.brand-master-output-card h2,
+.brand-master-output-card h3,
+.brand-master-output-card h4,
+.brand-master-output-card .card-title,
+.brand-master-output-card .site-logo,
+.brand-master-output-card .guidelines-spec-title {
+  font-family: var(--brand-heading-font, var(--brand-font, sans-serif)) !important;
+}
+
+.brand-master-card-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: var(--brand-card-surface, #0f1422);
+}
+
+.brand-master-output-card .site-product-card,
+.brand-master-output-card .crm-summary-card,
+.brand-master-output-card .site-hero-banner,
+.brand-master-output-card .deal-header-box,
+.brand-master-output-card .deal-tab-content-wrap,
+.brand-master-output-card .spec-sheet-box,
+.brand-master-output-card .form-gate-box,
+.brand-master-output-card .action-confirm-box,
+.brand-master-output-card .ticket-box,
+.brand-master-output-card .workflow-audit-box,
+.brand-master-output-card .system-alert-card,
+.brand-master-output-card .prose-block-wrap,
+.brand-master-output-card .site-table-wrap {
+  background: var(--brand-card-surface, #131b2e) !important;
+  border: 1px solid var(--brand-card-border, #1e293b) !important;
+  border-radius: var(--brand-btn-radius, 8px) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.brand-master-output-card .site-product-card:hover,
+.brand-master-output-card .crm-summary-card:hover {
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+.brand-master-output-card .site-navbar {
+  background: var(--brand-header-bg, #111827) !important;
+  border: 1px solid var(--brand-card-border, #1e293b) !important;
+  border-radius: var(--brand-btn-radius, 8px) !important;
+}
+
+.brand-master-output-card .site-data-table thead th {
+  background: var(--brand-header-bg, #0f172a) !important;
+  color: var(--brand-text-primary, #cbd5e1) !important;
+  border-bottom: 2px solid var(--brand-primary) !important;
+  font-family: var(--brand-heading-font, var(--brand-font)) !important;
+}
+
+.brand-master-output-card .site-data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.brand-master-output-card .btn-site-primary {
+  background: var(--brand-btn-bg, var(--brand-primary)) !important;
+  color: var(--brand-btn-text, #ffffff) !important;
+  border: none !important;
+  border-radius: var(--brand-btn-radius, 6px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+}
+
+.brand-master-output-card .btn-site-primary:hover {
+  opacity: 0.92 !important;
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+.brand-master-output-card .btn-site-primary-sm {
+  background: var(--brand-btn-bg, var(--brand-primary)) !important;
+  color: var(--brand-btn-text, #ffffff) !important;
+  border: 1px solid var(--brand-primary) !important;
+  border-radius: var(--brand-btn-radius, 4px) !important;
+}
+
+.brand-master-output-card .pub-badge,
+.brand-master-output-card .approval-badge,
+.brand-master-output-card .deal-stage-badge,
+.brand-master-output-card .status-pill,
+.brand-master-output-card .label-pill {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--brand-primary) !important;
+  border: 1px solid var(--brand-primary) !important;
+  border-radius: var(--brand-btn-radius, 4px) !important;
+}
+
+.brand-master-output-card .site-logo {
+  color: var(--brand-primary) !important;
+}
+
+.brand-master-output-card .kpi-number,
+.brand-master-output-card .price-amount,
+.brand-master-output-card .col-deal-value {
+  color: var(--brand-primary) !important;
+  font-weight: 700 !important;
+}
+
+
 

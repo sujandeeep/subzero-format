@@ -1,19 +1,254 @@
-import {
-  type ToolNativeBlock,
-  type ToolNativeResult,
-  type CatalogItem,
-  type PipelineRow,
-  type PipelineTableBlock,
-  type Deal360Block,
-  type SoftwareSpecBlock,
-  type FormGateBlock,
-  type ActionConfirmationBlock,
-  type LicenseTicketBlock,
-  type SystemAlertBlock,
-  type ProseBlock,
-  type WorkflowAuditBlock,
-  type PipelineSummaryKpis,
-} from './schema';
+/**
+ * ==============================================================================
+ * 100% SELF-CONTAINED TOOL-NATIVE DISPATCHER & DETERMINISTIC PARSER
+ * ==============================================================================
+ * Zero external dependencies. Zero internal imports. Drop into any project!
+ * ==============================================================================
+ */
+
+// 1. Software Catalog Grid
+export interface CatalogItem {
+  num: number;
+  name: string;
+  id: string; // Full 36-char software UUID
+  publisher: string;
+  requiresConfirmation: boolean;
+}
+
+export interface CatalogGridBlock {
+  blockType: 'CATALOG_GRID';
+  title: string;
+  totalFound: number;
+  showingCount: number;
+  items: CatalogItem[];
+}
+
+// 2. Opportunity Pipeline Table
+export interface PipelineRow {
+  num: number;
+  id: string;
+  name: string;
+  dealValue: string;
+  closeDate: string;
+  healthScore: string;
+  labels: string[];
+  company?: string;
+  industry?: string;
+  fields?: Record<string, string>;
+}
+
+export interface PipelineSummaryKpis {
+  totalValueFormatted?: string;
+  averageValueFormatted?: string;
+  totalRows?: number;
+  atRiskCount?: number;
+  highHealthCount?: number;
+}
+
+export interface PipelineTableBlock {
+  blockType: 'PIPELINE_TABLE';
+  title: string;
+  totalCount: number;
+  columns: string[];
+  rows: PipelineRow[];
+  suggestedActions: string[];
+  summaryKpis?: PipelineSummaryKpis;
+  detectedFormat?: 'COLON_LIST' | 'MARKDOWN_TABLE' | 'CSV_TSV' | 'JSON_PAYLOAD';
+}
+
+// 3. Deal 360 View
+export interface DealActivity {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  dueDate?: string;
+  assignedTo?: string;
+  description?: string;
+}
+
+export interface DealStakeholder {
+  name: string;
+  role: string;
+  raci?: string;
+  email?: string;
+  phone?: string;
+  jobTitle?: string;
+}
+
+export interface Deal360Block {
+  blockType: 'DEAL_360';
+  title: string;
+  description?: string;
+  opportunityId: string;
+  company: {
+    name: string;
+    companyId?: string;
+    profile?: string;
+  };
+  owner: string;
+  dealValue: string;
+  closeDate: string;
+  healthScore: string;
+  manualProbability?: string;
+  aiProbability?: {
+    score: string;
+    rationale: string;
+  };
+  labels: string[];
+  lineItems: Array<{
+    title: string;
+    productId?: string;
+    quantity: string;
+    price: string;
+  }>;
+  activities: DealActivity[];
+  stakeholders: DealStakeholder[];
+  documents: string;
+  customFields?: Record<string, string>;
+}
+
+// 4. Software Product Specification
+export interface SoftwareSpecBlock {
+  blockType: 'SOFTWARE_SPEC';
+  title: string;
+  softwareId: string;
+  revisionId?: string;
+  publisher: string;
+  description: string;
+  licensingUnit: string;
+  termPolicy: string;
+  approval: string;
+  cost: string;
+  minQuantity: string;
+  maxQuantity: string;
+  minTermDays?: string;
+  maxTermDays?: string;
+  requestable: boolean;
+  manualFulfillment: boolean;
+  attributes: Record<string, string>;
+}
+
+// 5. Form Gate / Parameter Collection
+export interface FormField {
+  name: string;
+  label: string;
+  placeholder?: string;
+  required: boolean;
+  type: 'text' | 'number' | 'select';
+}
+
+export interface FormGateBlock {
+  blockType: 'FORM_GATE';
+  softwareTitle: string;
+  softwareId?: string;
+  prompt: string;
+  fields: FormField[];
+}
+
+// 6. Action Confirmation
+export interface ActionItem {
+  id: string;
+  label: string;
+  style: 'primary' | 'secondary' | 'danger';
+}
+
+export interface ActionConfirmationBlock {
+  blockType: 'ACTION_CONFIRMATION';
+  headline: string;
+  target?: string;
+  status: 'pending' | 'submitted' | 'completed';
+  details?: Record<string, string>;
+  actions: ActionItem[];
+}
+
+// 7. SAM License Ticket
+export interface TicketComment {
+  author: string;
+  date: string;
+  text: string;
+}
+
+export interface LicenseTicketBlock {
+  blockType: 'LICENSE_TICKET';
+  ticketNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  group: string;
+  customer: string;
+  created: string;
+  updated: string;
+  samRequestUuid?: string;
+  resourceWorkUuid?: string;
+  action?: string;
+  comments: TicketComment[];
+}
+
+// 8. System Alert
+export interface SystemAlertBlock {
+  blockType: 'SYSTEM_ALERT';
+  severity: 'info' | 'warning' | 'error' | 'success';
+  headline: string;
+  message: string;
+  canRetry: boolean;
+}
+
+// 9. Prose Block / DO-NOT-FORMAT
+export interface ProseBlock {
+  blockType: 'PROSE';
+  content: string;
+  isDoNotFormat: boolean;
+}
+
+// 10. Workflow Audit Log
+export interface WorkflowStep {
+  toolName: string;
+  status: 'completed' | 'failed' | 'pending';
+  message: string;
+}
+
+export interface WorkflowAuditBlock {
+  blockType: 'WORKFLOW_AUDIT';
+  headline: string;
+  status: 'incomplete' | 'failed' | 'completed';
+  steps: WorkflowStep[];
+  actions: string[];
+}
+
+// Unified Block Union
+export type ToolNativeBlock =
+  | CatalogGridBlock
+  | PipelineTableBlock
+  | Deal360Block
+  | SoftwareSpecBlock
+  | FormGateBlock
+  | ActionConfirmationBlock
+  | LicenseTicketBlock
+  | SystemAlertBlock
+  | ProseBlock
+  | WorkflowAuditBlock;
+
+export interface ToolNativeExecutionTrace {
+  startedAt: string;
+  completedAt: string;
+  latencyMs: number;
+  blockType: ToolNativeBlock['blockType'];
+  networkHops: 0;
+  costUsd: 0;
+  preservedUuids: string[];
+  totalUuidsFound: number;
+  validationStatus: 'PASSED';
+  detectedFormat?: 'COLON_LIST' | 'MARKDOWN_TABLE' | 'CSV_TSV' | 'JSON_PAYLOAD' | 'CONVERSATIONAL' | 'STRUCTURED_ENTITY';
+  sanitizationApplied?: boolean;
+}
+
+export interface ToolNativeResult {
+  block: ToolNativeBlock;
+  trace: ToolNativeExecutionTrace;
+  rawInput: string;
+  inputNumber: number;
+}
 
 const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
@@ -474,7 +709,21 @@ function extractStakeholders(text: string): Deal360Block['stakeholders'] {
  * - Strips trailing suggested actions from tables to prevent fake rows
  * - < 0.25ms latency with zero LLM API calls
  */
-export function dispatchToolNativeBlock(inputNumber: number, rawInput: string): ToolNativeResult {
+export function dispatchToolNativeBlock(
+  arg1: number | string,
+  arg2?: string | number
+): ToolNativeResult {
+  let inputNumber = 1;
+  let rawInput = '';
+
+  if (typeof arg1 === 'number') {
+    inputNumber = arg1;
+    rawInput = typeof arg2 === 'string' ? arg2 : '';
+  } else if (typeof arg1 === 'string') {
+    rawInput = arg1;
+    inputNumber = typeof arg2 === 'number' ? arg2 : 1;
+  }
+
   const startTime = performance.now();
   const startedAt = new Date().toISOString();
 
