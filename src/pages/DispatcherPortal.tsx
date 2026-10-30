@@ -1166,6 +1166,14 @@ function parseRichContent(rawText: string): RichElement[] {
       continue;
     }
 
+    // Standalone number on its own line: e.g. "#1" or "1." followed by text on next line
+    const standaloneNumMatch = line.match(/^#?(\d+)[\.\)]?$/);
+    if (standaloneNumMatch && i + 1 < lines.length && !lines[i + 1].trim().startsWith('|')) {
+      elements.push({ type: 'step', num: standaloneNumMatch[1], text: lines[i + 1].trim() });
+      i += 2;
+      continue;
+    }
+
     // Numbered steps: 1. ... 2. ...
     const numMatch = line.match(/^(\d+)[\.\)]\s*(.+)$/);
     if (numMatch && !line.includes('|')) {
@@ -1174,8 +1182,15 @@ function parseRichContent(rawText: string): RichElement[] {
       continue;
     }
 
+    // Standalone bullet on its own line: e.g. "•" or "-" followed by text on next line
+    if ((line === '•' || line === '-' || line === '*') && i + 1 < lines.length && !lines[i + 1].trim().startsWith('|')) {
+      elements.push({ type: 'bullet', text: lines[i + 1].trim() });
+      i += 2;
+      continue;
+    }
+
     // Bullets: - ... * ... • ...
-    if ((line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) && !line.includes('|')) {
+    if ((line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ') || line.startsWith('•')) && !line.includes('|')) {
       elements.push({ type: 'bullet', text: line.replace(/^[-*•]\s*/, '') });
       i++;
       continue;
@@ -1414,12 +1429,27 @@ function renderRichStructuredContent(content: string): React.ReactNode {
             return (
               <div
                 key={idx}
-                className="catalog-item-row"
-                style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', margin: '6px 0' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  margin: '8px 0',
+                  padding: '10px 14px',
+                  background: '#090e1a',
+                  border: '1px solid #1e293b',
+                  borderRadius: '6px',
+                }}
               >
                 <span
                   className="portal-badge"
-                  style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
                 >
                   #{el.num}
                 </span>
@@ -1434,11 +1464,28 @@ function renderRichStructuredContent(content: string): React.ReactNode {
             return (
               <div
                 key={idx}
-                className="catalog-item-row"
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '4px 0' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  margin: '6px 0',
+                  padding: '2px 0 2px 4px',
+                }}
               >
-                <span style={{ color: '#38bdf8', fontSize: '14px', flexShrink: 0 }}>•</span>
-                <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1' }}>
+                <span
+                  style={{
+                    color: '#38bdf8',
+                    fontSize: '16px',
+                    lineHeight: '1.4',
+                    flexShrink: 0,
+                    marginTop: '1px',
+                    userSelect: 'none',
+                  }}
+                >
+                  •
+                </span>
+                <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
                   {renderFormattedInline(el.text, true)}
                 </div>
               </div>
