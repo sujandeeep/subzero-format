@@ -359,12 +359,44 @@
   color: #34d399;
 }
 
+.toolbar-btn.process-btn {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.toolbar-btn.process-btn:hover {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.toolbar-btn.process-btn.processed {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #34d399;
+  color: #34d399;
+}
+
 .toolbar-tip {
   font-size: 11px;
   color: #64748b;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.custom-input-pill {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 4px;
 }
 
 /* ==========================================================================
@@ -374,14 +406,15 @@
 .raw-input-scroll-wrap {
   flex: 1;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   position: relative;
   height: calc(100% - 38px);
 }
 
 .raw-input-textarea {
+  flex: 1;
   width: 100%;
-  height: 100%;
   padding: 16px;
   background: transparent;
   color: #cbd5e1;
@@ -394,6 +427,63 @@
   box-sizing: border-box;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.input-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #080d18;
+  border-top: 1px solid #1a2436;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.input-action-hint {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-action-hint kbd {
+  background: #172033;
+  border: 1px solid #2d3b55;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: inherit;
+}
+
+.primary-process-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  height: 30px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+  white-space: nowrap;
+}
+
+.primary-process-btn:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.5);
+}
+
+.primary-process-btn.processed {
+  background: #059669;
+  border-color: #34d399;
 }
 
 .raw-input-textarea::placeholder {

@@ -10,6 +10,8 @@ import {
   Trash2,
   Columns,
   Hash,
+  CornerDownLeft,
+  Play,
 } from 'lucide-react';
 import { JEEVES_100_ITEMS } from '../data/loader';
 import {
@@ -35,6 +37,7 @@ export const DispatcherPortal: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'input' | 'output'>('output');
   const [desktopView, setDesktopView] = useState<'split' | 'input' | 'output'>('split');
   const [copiedRaw, setCopiedRaw] = useState<boolean>(false);
+  const [justProcessed, setJustProcessed] = useState<boolean>(false);
 
   // Swipe detection for mobile navigation
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -103,6 +106,17 @@ export const DispatcherPortal: React.FC = () => {
     setTimeout(() => setCopiedRaw(false), 1800);
   };
 
+  const handleProcess = useCallback(() => {
+    if (!activeText.trim()) return;
+    setJustProcessed(true);
+    setTimeout(() => setJustProcessed(false), 1400);
+    // Automatically reveal the formatted output tab
+    setMobileTab('output');
+    if (desktopView === 'input') {
+      setDesktopView('split');
+    }
+  }, [activeText, desktopView]);
+
   const handleReset = () => {
     setCustomInput(null);
   };
@@ -146,6 +160,11 @@ export const DispatcherPortal: React.FC = () => {
               aria-label="Current Item Number"
             />
             <span className="nav-counter-total">/ {totalItems}</span>
+            {isCustomized && (
+              <span className="custom-input-pill" title="Custom raw input is active">
+                Custom
+              </span>
+            )}
           </div>
 
           <button
@@ -276,6 +295,15 @@ export const DispatcherPortal: React.FC = () => {
                 {copiedRaw ? <Check size={13} /> : <Copy size={13} />}
                 <span>{copiedRaw ? 'Copied' : 'Copy'}</span>
               </button>
+              <button
+                type="button"
+                className={`toolbar-btn process-btn ${justProcessed ? 'processed' : ''}`}
+                onClick={handleProcess}
+                title="Process raw input into structured output (Ctrl+Enter)"
+              >
+                <CornerDownLeft size={13} />
+                <span>{justProcessed ? 'Processed ✓' : 'Enter ↵'}</span>
+              </button>
             </div>
           </div>
 
@@ -284,10 +312,30 @@ export const DispatcherPortal: React.FC = () => {
               className="raw-input-textarea"
               value={activeText}
               onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Paste raw unstructured agent or boss message here..."
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  handleProcess();
+                }
+              }}
+              placeholder="Paste raw unstructured agent or boss message here (e.g. JSON, table, list, or text with Key: Value pairs)..."
               spellCheck={false}
               aria-label="Raw input text"
             />
+            <div className="input-action-bar">
+              <span className="input-action-hint">
+                <kbd>Ctrl</kbd> + <kbd>Enter ↵</kbd>
+              </span>
+              <button
+                type="button"
+                className={`primary-process-btn ${justProcessed ? 'processed' : ''}`}
+                onClick={handleProcess}
+                title="Format raw data into structured output"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>{justProcessed ? 'Processed Live ✓' : 'Process & Format (Enter ↵)'}</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -300,6 +348,11 @@ export const DispatcherPortal: React.FC = () => {
             <div className="toolbar-info">
               <span className="toolbar-tag output-tag">STRUCTURED OUTPUT</span>
               <span className="toolbar-type-badge">{block.blockType}</span>
+              {justProcessed && (
+                <span className="toolbar-tag" style={{ color: '#34d399', borderColor: '#34d399', background: 'rgba(52, 211, 153, 0.12)' }}>
+                  ✓ LIVE COMPILED
+                </span>
+              )}
             </div>
 
             <div className="toolbar-actions">
@@ -310,7 +363,17 @@ export const DispatcherPortal: React.FC = () => {
           </div>
 
           <div className="panel-scroll-area">
-            {renderOutputBlock(block)}
+            {!activeText.trim() ? (
+              <div className="output-card" style={{ textAlign: 'center', padding: '60px 24px' }}>
+                <Sparkles size={36} style={{ color: '#38bdf8', margin: '0 auto 14px auto', display: 'block' }} />
+                <h2 className="output-main-title" style={{ fontSize: '18px', marginBottom: '8px' }}>Waiting for Raw Input</h2>
+                <p className="output-desc" style={{ maxWidth: '420px', margin: '0 auto 20px auto', lineHeight: '1.6' }}>
+                  Paste any unstructured data, JSON payload, table, or entity fields on the left and click <strong>Process &amp; Format (Enter ↵)</strong> to instantly generate clean deterministic output.
+                </p>
+              </div>
+            ) : (
+              renderOutputBlock(block)
+            )}
           </div>
         </section>
       </div>
@@ -375,10 +438,7 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                       if (col === 'Opportunity Name') {
                         return (
                           <td key={cIdx} style={{ fontWeight: 600 }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <span>{row.name}</span>
-                              <UuidBadge uuid={row.id} />
-                            </div>
+                            {row.name}
                           </td>
                         );
                       }
@@ -544,6 +604,7 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                 <thead>
                   <tr>
                     <th>Item</th>
+                    <th>Product UUID</th>
                     <th>Qty</th>
                     <th>Price</th>
                   </tr>
@@ -551,11 +612,9 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                 <tbody>
                   {blk.lineItems.map((li, idx) => (
                     <tr key={idx}>
-                      <td style={{ fontWeight: 600 }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span>{li.title}</span>
-                          {li.productId && <UuidBadge uuid={li.productId} />}
-                        </div>
+                      <td style={{ fontWeight: 600 }}>{li.title}</td>
+                      <td className="portal-uuid-cell">
+                        {li.productId ? <UuidBadge uuid={li.productId} /> : '—'}
                       </td>
                       <td>{li.quantity}</td>
                       <td style={{ color: '#34d399', fontWeight: 600 }}>{li.price}</td>

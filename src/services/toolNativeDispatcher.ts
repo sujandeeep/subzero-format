@@ -540,7 +540,8 @@ export function parseMarkdownPipeTable(text: string): PipelineTableBlock | null 
 
     const uuidMatch = lines[i].match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
     const rowId = uuidMatch ? uuidMatch[0] : (fields['Opportunity UUID'] || `ROW-${rowNum}`);
-    const name = fields['Opportunity Name'] || cleanMd(cells[0]) || `Item #${rowNum}`;
+    const rawName = fields['Opportunity Name'] || cleanMd(cells[0]) || `Item #${rowNum}`;
+    const name = rawName.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '').trim() || rawName;
 
     rows.push({
       num: rowNum,
@@ -610,7 +611,8 @@ export function parseCsvTsvTable(text: string): PipelineTableBlock | null {
 
     const uuidMatch = lines[i].match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
     const rowId = uuidMatch ? uuidMatch[0] : (fields['Opportunity UUID'] || `ROW-${rowNum}`);
-    const name = fields['Opportunity Name'] || rawCells[0] || `Row #${rowNum}`;
+    const rawName = fields['Opportunity Name'] || rawCells[0] || `Row #${rowNum}`;
+    const name = rawName.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '').trim() || rawName;
 
     rows.push({
       num: rowNum,
@@ -641,6 +643,128 @@ export function parseCsvTsvTable(text: string): PipelineTableBlock | null {
     summaryKpis: computePipelineKpis(rows),
     detectedFormat: 'CSV_TSV',
   };
+}
+
+/**
+ * Parses a JSON array of objects into a PipelineTableBlock
+ */
+export function parseJsonTable(text: string): PipelineTableBlock | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null;
+
+  try {
+    const data = JSON.parse(trimmed);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    if (typeof data[0] !== 'object' || data[0] === null) return null;
+
+    const headerSet = new Set<string>();
+    for (const item of data) {
+      if (item && typeof item === 'object') {
+        Object.keys(item).forEach((k) => headerSet.add(k));
+      }
+    }
+    const headers = Array.from(headerSet);
+    if (headers.length === 0) return null;
+
+    const rows: PipelineRow[] = [];
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i] as Record<string, unknown>;
+      const rowNum = i + 1;
+      const fields: Record<string, string> = {};
+
+      headers.forEach((h) => {
+        fields[h] = item[h] !== undefined && item[h] !== null ? String(item[h]) : '—';
+      });
+
+      const rowId =
+        (typeof item.id === 'string' && isUuid(item.id) ? item.id : '') ||
+        (typeof item.uuid === 'string' && isUuid(item.uuid) ? item.uuid : '') ||
+        (typeof item['Opportunity UUID'] === 'string' ? String(item['Opportunity UUID']) : '') ||
+        (typeof item['Product UUID'] === 'string' ? String(item['Product UUID']) : '') ||
+        `ROW-${rowNum}`;
+
+      const nameVal =
+        item.name || item.title || item['Opportunity Name'] || item['Product Name'] || item.item || `Item #${rowNum}`;
+      const name = String(nameVal).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '').trim() || `Item #${rowNum}`;
+
+      rows.push({
+        num: rowNum,
+        id: rowId,
+        maskedId: toMaskedUuid(rowId),
+        name,
+        dealValue: fields['Deal Value'] || (item.price ? String(item.price) : '') || '',
+        closeDate: fields['Close Date'] || '',
+        healthScore: fields['Health Score'] || '',
+        labels: Array.isArray(item.labels) ? item.labels.map(String) : [],
+        fields,
+      });
+    }
+
+    const columns = ['#', ...headers.filter((h) => h !== '#')];
+
+    return {
+      blockType: 'PIPELINE_TABLE',
+      title: 'Formatted JSON Data Table',
+      totalCount: rows.length,
+      columns,
+      rows,
+      suggestedActions: ['Export View', 'Copy as JSON'],
+      summaryKpis: computePipelineKpis(rows),
+      detectedFormat: 'JSON_PAYLOAD',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parses a single JSON object into a SoftwareSpecBlock / Entity specification
+ */
+export function parseJsonObject(text: string): SoftwareSpecBlock | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+
+  try {
+    const data = JSON.parse(trimmed);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+    const keys = Object.keys(data);
+    if (keys.length === 0) return null;
+
+    const titleVal = data.title || data.name || data.subject || data.headline || 'Structured Entity Record';
+    const uuidVal =
+      (typeof data.id === 'string' && isUuid(data.id) ? data.id : '') ||
+      (typeof data.uuid === 'string' && isUuid(data.uuid) ? data.uuid : '') ||
+      (typeof data.softwareId === 'string' ? data.softwareId : '') ||
+      '';
+
+    const attributes: Record<string, string> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (k !== 'title' && k !== 'name' && k !== 'id' && k !== 'uuid' && k !== 'softwareId') {
+        attributes[k] = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v);
+      }
+    }
+
+    return {
+      blockType: 'SOFTWARE_SPEC',
+      title: String(titleVal),
+      softwareId: uuidVal,
+      maskedSoftwareId: uuidVal ? toMaskedUuid(uuidVal) : undefined,
+      publisher: data.publisher || data.vendor || data.company ? String(data.publisher || data.vendor || data.company) : '',
+      description: data.description ? String(data.description) : '',
+      licensingUnit: '',
+      termPolicy: '',
+      approval: '',
+      cost: data.cost || data.price ? String(data.cost || data.price) : '',
+      minQuantity: '',
+      maxQuantity: '',
+      requestable: true,
+      manualFulfillment: false,
+      attributes,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -859,6 +983,55 @@ export function dispatchToolNativeBlock(
     }
   }
 
+  // 5.5 JSON PAYLOAD INGESTION (Arrays of objects or single entity objects)
+  const jsonTable = parseJsonTable(text);
+  if (jsonTable) {
+    const completedAt = new Date().toISOString();
+    return {
+      block: jsonTable,
+      trace: {
+        startedAt,
+        completedAt,
+        latencyMs: Number((performance.now() - startTime).toFixed(3)),
+        blockType: 'PIPELINE_TABLE',
+        networkHops: 0,
+        costUsd: 0,
+        preservedUuids: extractAllUuids(text),
+        maskedUuids: extractAllUuids(text).map(toMaskedUuid),
+        totalUuidsFound: extractAllUuids(text).length,
+        validationStatus: 'PASSED',
+        detectedFormat: 'JSON_PAYLOAD',
+        sanitizationApplied: sanitized,
+      },
+      rawInput,
+      inputNumber,
+    };
+  }
+
+  const jsonObject = parseJsonObject(text);
+  if (jsonObject) {
+    const completedAt = new Date().toISOString();
+    return {
+      block: jsonObject,
+      trace: {
+        startedAt,
+        completedAt,
+        latencyMs: Number((performance.now() - startTime).toFixed(3)),
+        blockType: 'SOFTWARE_SPEC',
+        networkHops: 0,
+        costUsd: 0,
+        preservedUuids: extractAllUuids(text),
+        maskedUuids: extractAllUuids(text).map(toMaskedUuid),
+        totalUuidsFound: extractAllUuids(text).length,
+        validationStatus: 'PASSED',
+        detectedFormat: 'JSON_PAYLOAD',
+        sanitizationApplied: sanitized,
+      },
+      rawInput,
+      inputNumber,
+    };
+  }
+
   // 6. MARKDOWN PIPE TABLE INGESTION (| Col 1 | Col 2 |)
   const pipeTable = parseMarkdownPipeTable(text);
   if (pipeTable) {
@@ -948,8 +1121,18 @@ export function dispatchToolNativeBlock(
       actions: [],
     } as WorkflowAuditBlock;
   }
-  // 2. SOFTWARE CATALOG SEARCH GRID (Items 11, 14, 15, 16, etc.)
-  else if (text.includes('matching software') || (text.includes('Found') && text.includes('software products'))) {
+  // 2. SOFTWARE / ITEM CATALOG SEARCH GRID (Items 11, 14, 15, 16, or any user numbered item list)
+  else if (
+    text.includes('matching software') ||
+    (text.includes('Found') && text.includes('software products')) ||
+    (text.match(/^\s*\d+\.\s+[^\n]+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/m) &&
+      !text.includes('deal_value') &&
+      !text.includes('Deal Value') &&
+      !text.includes('health_score') &&
+      !text.includes('Health score') &&
+      !text.includes('close date') &&
+      !text.includes('opportunity_id'))
+  ) {
     const totalMatch = text.match(/Found\s+(\d+)\s+matching/i);
     const showingMatch = text.match(/Showing\s+(\d+)\s+on/i);
     const totalFound = totalMatch ? parseInt(totalMatch[1], 10) : 0;
@@ -959,19 +1142,21 @@ export function dispatchToolNativeBlock(
     const itemChunks = text.split(/(?=\n\d+\.\s+)/);
 
     for (const chunk of itemChunks) {
-      const matchHeader = chunk.match(/(\d+)\.\s+(.*?)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      const matchHeader = chunk.match(/(\d+)\.\s+(.*?)(?:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})|$)/i);
+      const uuidInChunk = chunk.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
       if (matchHeader) {
         const num = parseInt(matchHeader[1], 10);
-        const name = matchHeader[2].trim();
-        const id = matchHeader[3].trim();
-        const pubMatch = chunk.match(/Publisher:\s*([^\n]+)/i);
+        const rawName = matchHeader[2].split('\n')[0].replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '').trim();
+        const name = cleanMd(rawName) || `Item #${num}`;
+        const id = uuidInChunk ? uuidInChunk[1] : '';
+        const pubMatch = chunk.match(/(?:Publisher|Vendor|Provider|Company|Brand|Category):\s*([^\n]+)/i);
         const publisher = pubMatch ? pubMatch[1].trim() : '';
         const reqMatch = chunk.match(/Requires confirmation:\s*([^\n]+)/i);
         items.push({
           num,
           name,
           id,
-          maskedId: toMaskedUuid(id),
+          maskedId: id ? toMaskedUuid(id) : undefined,
           publisher,
           requiresConfirmation: reqMatch ? reqMatch[1].trim().toLowerCase() === 'true' : false,
         });
@@ -982,7 +1167,7 @@ export function dispatchToolNativeBlock(
 
     block = {
       blockType: 'CATALOG_GRID',
-      title: firstLineClean || '',
+      title: firstLineClean || 'Item Catalog',
       totalFound: totalFound || items.length,
       showingCount: showingCount || items.length,
       items,
@@ -1181,6 +1366,9 @@ export function dispatchToolNativeBlock(
       }
 
       let name = fields['Opportunity Name'] || '';
+      if (name) {
+        name = name.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '').trim();
+      }
       if (!name) {
         name = cleanMd(
           numMatch[2]
@@ -1563,7 +1751,60 @@ export function dispatchToolNativeBlock(
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
     } as Deal360Block;
   }
-  // 10. DIRECT BOT PROMPT / CONVERSATIONAL PROSE (Items 2, 23)
+  // 10. UNIVERSAL STRUCTURED KEY-VALUE ENTITY / SPECIFICATION (Any custom user data with fields)
+  else if (
+    !text.startsWith('DO-NOT-FORMAT') &&
+    (text.split('\n').filter((l) => {
+      const idx = l.indexOf(':');
+      return idx > 0 && !l.startsWith('http') && idx < l.length - 1;
+    }).length >= 2 ||
+      (text.match(/(?:^|[,\n])\s*[-*•]*\s*([a-zA-Z0-9_\s]{2,32}):\s*([^,\n]+)/g) || []).length >= 2)
+  ) {
+    const swUuid = text.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    const pubMatch = text.match(/(?:Publisher|Vendor|Provider|Company|Author|Owner):\s*([^\n]+)/i);
+    const descMatch = text.match(/(?:Description|Summary|Notes|Details):\s*([^\n]+)/i);
+    const costMatch = text.match(/(?:Cost|Price|Budget|Amount|Value):\s*([^\n]+)/i);
+    const statusMatch = text.match(/(?:Status|State|Stage):\s*([^\n]+)/i);
+
+    const titleMatch = firstLine.match(/^\d*\.?\s*(.*?)(?:[0-9a-f]{8}-[0-9a-f]{4}|$)/i);
+    let title = titleMatch && titleMatch[1].trim() ? titleMatch[1].trim() : '';
+    if (!title || title.includes(':')) {
+      const namedMatch = text.match(/(?:^|\n)\s*[-*•]*\s*(?:Title|Name|Subject|Entity):\s*([^\n]+)/i);
+      title = namedMatch ? namedMatch[1].trim() : 'Structured Entity Record';
+    }
+
+    const attributes: Record<string, string> = {};
+    const attrLines = text.split('\n');
+    for (const l of attrLines) {
+      const colonIdx = l.indexOf(':');
+      if (colonIdx > 0 && !l.startsWith('http')) {
+        const rawK = l.slice(0, colonIdx).replace(/^[\s*•\-\d.]*/, '').trim();
+        const rawV = l.slice(colonIdx + 1).trim();
+        if (rawK && rawV && rawK.length < 35 && !rawK.toLowerCase().includes('uuid') && !rawK.toLowerCase().includes('description')) {
+          attributes[normalizeHeader(rawK)] = cleanMd(rawV);
+        }
+      }
+    }
+
+    block = {
+      blockType: 'SOFTWARE_SPEC',
+      title,
+      softwareId: swUuid ? swUuid[1] : '',
+      maskedSoftwareId: swUuid ? toMaskedUuid(swUuid[1]) : undefined,
+      publisher: pubMatch ? cleanMd(pubMatch[1]) : '',
+      description: descMatch ? cleanMd(descMatch[1]) : '',
+      licensingUnit: '',
+      termPolicy: '',
+      approval: statusMatch ? cleanMd(statusMatch[1]) : '',
+      cost: costMatch ? cleanMd(costMatch[1]).replace(/^\$/, '') : '',
+      minQuantity: '',
+      maxQuantity: '',
+      requestable: true,
+      manualFulfillment: false,
+      attributes,
+    } as SoftwareSpecBlock;
+  }
+  // 11. DIRECT BOT PROMPT / CONVERSATIONAL PROSE (Items 2, 23)
   else {
     const isDoNotFormat = text.startsWith('DO-NOT-FORMAT');
     const cleanContent = isDoNotFormat ? text.replace(/^DO-NOT-FORMAT\s*/i, '').trim() : text;
