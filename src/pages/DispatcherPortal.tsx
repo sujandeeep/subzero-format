@@ -1127,7 +1127,7 @@ function parseRichContent(rawText: string): RichElement[] {
       continue;
     }
 
-    // Rule definition: e.g. "- Rule: l4_flight_travel_allow"
+    // Rule definition: e.g. "- Rule: rule_name"
     if (line.match(/^[-*•]?\s*Rule:\s*(.+)$/i)) {
       const ruleMatch = line.match(/^[-*•]?\s*Rule:\s*(.+)$/i);
       const ruleName = ruleMatch ? ruleMatch[1].trim() : '';

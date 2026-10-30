@@ -1248,7 +1248,7 @@ export function dispatchToolNativeBlock(
       const date = dateMatch ? dateMatch[1].trim() : (authorMatch && authorMatch[2] ? authorMatch[2].trim() : '');
       let bodyText = bodyMatch ? bodyMatch[1].trim() : cText.replace(/^-\s*\*\*[^*]+\*\*\s*\([^)]+\)[^\n]*\n?/i, '').trim();
 
-      // Separate trailing action item like "1. Add a comment to ticket #75498"
+      // Separate trailing action item like "1. Add a comment to ticket #..."
       bodyText = bodyText.replace(/\n\s*1\.\s+Add a comment[^\n]*/i, '').trim();
 
       if (author || bodyText) {
