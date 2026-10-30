@@ -263,8 +263,8 @@ function extractAllUuids(text: string): string[] {
 export function cleanMd(str?: string): string {
   if (!str) return '';
   return str
-    .replace(/^[\s*•\-]+/, '')
-    .replace(/[\s*•\-]+$/, '')
+    .replace(/^[\s*•-]+/, '')
+    .replace(/[\s*•-]+$/, '')
     .replace(/\*\*/g, '')
     .replace(/^Opportunity:\s*/i, '')
     .replace(/^Name:\s*/i, '')
@@ -479,9 +479,9 @@ export function parseMarkdownPipeTable(text: string): PipelineTableBlock | null 
       num: rowNum,
       id: rowId,
       name,
-      dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : 'Not provided',
-      closeDate: fields['Close Date'] || 'Not provided',
-      healthScore: fields['Health Score'] || 'Not provided',
+      dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : '',
+      closeDate: fields['Close Date'] || '',
+      healthScore: fields['Health Score'] || '',
       labels: fields['Labels'] ? fields['Labels'].split(',').map((s) => cleanMd(s)).filter(Boolean) : [],
       company: fields['Company'],
       industry: fields['Industry'],
@@ -548,9 +548,9 @@ export function parseCsvTsvTable(text: string): PipelineTableBlock | null {
       num: rowNum,
       id: rowId,
       name,
-      dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : 'Not provided',
-      closeDate: fields['Close Date'] || 'Not provided',
-      healthScore: fields['Health Score'] || 'Not provided',
+      dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : '',
+      closeDate: fields['Close Date'] || '',
+      healthScore: fields['Health Score'] || '',
       labels: fields['Labels'] ? fields['Labels'].split(',').map((s) => cleanMd(s)).filter(Boolean) : [],
       company: fields['Company'],
       industry: fields['Industry'],
@@ -564,11 +564,11 @@ export function parseCsvTsvTable(text: string): PipelineTableBlock | null {
 
   return {
     blockType: 'PIPELINE_TABLE',
-    title: 'Formatted Delimited Data Grid',
+    title: 'Formatted Data Grid',
     totalCount: rows.length,
     columns,
     rows,
-    suggestedActions: ['Export View', 'Copy as JSON'],
+    suggestedActions: [],
     summaryKpis: computePipelineKpis(rows),
     detectedFormat: 'CSV_TSV',
   };
@@ -653,19 +653,21 @@ function extractStakeholders(text: string): Deal360Block['stakeholders'] {
         const emailM = l.match(/(?:Email:\s*|[<[])([^\s–—\->\]]+@[^\s–—\->\]]+|[EMAIL_REDACTED]+)/i);
         const phoneM = l.match(/(?:Phone:\s*|\b)(555[‑-]\d{4}|\d{3}[‑-]\d{4})/i);
         const jobMatch = l.match(/Job title:\s*([^\n–—]+)/i) || l.match(/[–—]\s*([A-Za-z\s]+?)(?:\s*\(|\s*[–—]|\s*–|$)/);
-        const cleanLine = l.replace(/^[\s*•\-]+/, '');
+        const roleMatch = l.match(/(?:Role:\s*|RACI:\s*)([^\s–—,)]+)/i);
+        const cleanLine = l.replace(/^[\s*•-]+/, '');
         const parts = cleanLine.split(/[–—]/);
         const name = cleanMd(parts[0]);
 
         if (name && !name.toLowerCase().includes('email') && !name.toLowerCase().includes('phone') && !name.toLowerCase().includes('documents')) {
-          currentSh = {
+          const sh: DealStakeholder = {
             name,
-            role: 'Primary Contact',
+            role: roleMatch ? cleanMd(roleMatch[1]) : (parts[1] && parts[1].toLowerCase().includes('primary') ? 'Primary' : ''),
             jobTitle: jobMatch ? cleanMd(jobMatch[1]) : (parts[1] ? cleanMd(parts[1].replace(/\(.*?\)/g, '')) : undefined),
             email: emailM ? emailM[1] : undefined,
             phone: phoneM ? phoneM[1] : undefined,
           };
-          stakeholders.push(currentSh);
+          currentSh = sh;
+          stakeholders.push(sh);
         }
       }
     }
@@ -853,26 +855,25 @@ export function dispatchToolNativeBlock(
         const toolName = match[1];
         const statusStr = match[2].toLowerCase();
         const status = statusStr.includes('fail') ? ('failed' as const) : ('completed' as const);
-        const message = match[3] || (status === 'failed' ? 'Completion is not confirmed; verify state before retrying.' : 'Tool execution finished successfully.');
+        const message = match[3] || line.replace(/^-\s*/, '');
         steps.push({ toolName, status, message });
       } else {
         const simple = line.replace(/^-\s*/, '').trim();
         steps.push({
-          toolName: simple.split(':')[0] || 'tool_step',
+          toolName: simple.split(':')[0] || '',
           status: simple.toLowerCase().includes('fail') ? 'failed' : 'completed',
           message: simple,
         });
       }
     }
 
+    const firstLineHeadline = firstLine.replace(/^DO-NOT-FORMAT\s*/i, '').trim();
     block = {
       blockType: 'WORKFLOW_AUDIT',
-      headline: 'Agent Execution Interrupted: Partial Tool Completion',
-      status: 'incomplete',
-      steps: steps.length > 0 ? steps : [
-        { toolName: 'submit_resource_request', status: 'failed', message: 'Completion is not confirmed; check current state before retrying.' },
-      ],
-      actions: ['Retry Failed Step', 'Inspect Session State', 'Rollback Session'],
+      headline: firstLineHeadline || '',
+      status: steps.some((s) => s.status === 'failed') ? 'incomplete' : 'completed',
+      steps,
+      actions: [],
     } as WorkflowAuditBlock;
   }
   // 2. SOFTWARE CATALOG SEARCH GRID (Items 11, 14, 15, 16, etc.)
@@ -892,20 +893,23 @@ export function dispatchToolNativeBlock(
         const name = matchHeader[2].trim();
         const id = matchHeader[3].trim();
         const pubMatch = chunk.match(/Publisher:\s*([^\n]+)/i);
-        const publisher = pubMatch ? pubMatch[1].trim() : 'Adobe';
+        const publisher = pubMatch ? pubMatch[1].trim() : '';
+        const reqMatch = chunk.match(/Requires confirmation:\s*([^\n]+)/i);
         items.push({
           num,
           name,
           id,
           publisher,
-          requiresConfirmation: true,
+          requiresConfirmation: reqMatch ? reqMatch[1].trim().toLowerCase() === 'true' : false,
         });
       }
     }
 
+    const firstLineClean = firstLine.trim();
+
     block = {
       blockType: 'CATALOG_GRID',
-      title: 'Software Catalog Search Results',
+      title: firstLineClean || '',
       totalFound: totalFound || items.length,
       showingCount: showingCount || items.length,
       items,
@@ -914,7 +918,7 @@ export function dispatchToolNativeBlock(
   // 3. SAM LICENSE TICKET (Items 7, 8)
   else if (firstLine.includes('**License #') || text.includes('SAM fulfillment handoff')) {
     const ticketMatch = text.match(/License\s+#(\d+)/i);
-    const ticketNumber = ticketMatch ? ticketMatch[1] : '75537';
+    const ticketNumber = ticketMatch ? ticketMatch[1] : '';
     const statusMatch = text.match(/Status:\s*([^\s|\n]+)/i);
     const priorityMatch = text.match(/Priority:\s*([^\n]+)/i);
     const groupMatch = text.match(/Group:\s*([^\n]+)/i);
@@ -924,25 +928,34 @@ export function dispatchToolNativeBlock(
     const samMatch = text.match(/SAM request:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
     const resourceMatch = text.match(/Resource work:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
 
+    const firstLineClean = firstLine.replace(/^\*\*License\s*#\d+\*\*:\s*/i, '').trim();
+
+    const comments: { author: string; date: string; text: string }[] = [];
+    const commentBlockMatch = text.match(/Comments\s*&\s*Activity History:\s*([\s\S]*)$/i);
+    if (commentBlockMatch) {
+      const cText = commentBlockMatch[1];
+      const authorMatch = cText.match(/-\s*\*\*([^*]+)\*\*\s*\(([^)]+)\)/i);
+      const author = authorMatch ? authorMatch[1].trim() : '';
+      const date = authorMatch ? authorMatch[2].trim() : '';
+      const bodyText = cText.replace(/^-\s*\*\*[^*]+\*\*\s*\([^)]+\)[^\n]*\n?/i, '').trim();
+      if (author || bodyText) {
+        comments.push({ author, date, text: bodyText });
+      }
+    }
+
     block = {
       blockType: 'LICENSE_TICKET',
       ticketNumber,
-      title: 'SAM Fulfillment Handoff: SOFTWARE',
-      status: statusMatch ? statusMatch[1].trim() : 'open',
-      priority: priorityMatch ? priorityMatch[1].trim() : 'normal',
-      group: groupMatch ? groupMatch[1].trim() : 'License Desk',
-      customer: customerMatch ? customerMatch[1].trim() : 'Confidential',
-      created: createdMatch ? createdMatch[1].trim() : '2026-10-24',
-      updated: updatedMatch ? updatedMatch[1].trim() : '2026-10-24',
+      title: firstLineClean || (ticketNumber ? `License #${ticketNumber}` : 'License Request'),
+      status: statusMatch ? statusMatch[1].trim() : '',
+      priority: priorityMatch ? priorityMatch[1].trim() : '',
+      group: groupMatch ? groupMatch[1].trim() : '',
+      customer: customerMatch ? customerMatch[1].trim() : '',
+      created: createdMatch ? createdMatch[1].trim() : '',
+      updated: updatedMatch ? updatedMatch[1].trim() : '',
       samRequestUuid: samMatch ? samMatch[1] : undefined,
       resourceWorkUuid: resourceMatch ? resourceMatch[1] : undefined,
-      comments: [
-        {
-          author: 'Admin User',
-          date: '2026-10-24',
-          text: 'Resource work initiated. Manage this ticket in the ticketing system. Record resource completion in SAM; ticket closure does not fulfill or revoke an entitlement.',
-        },
-      ],
+      comments,
     } as LicenseTicketBlock;
   }
   // 4. FORM GATE / PARAMETER COLLECTION (Items 9, 20, 76)
@@ -956,35 +969,21 @@ export function dispatchToolNativeBlock(
       text.match(/\*\*([^*]+)\*\*/i) ||
       text.match(/licence request for\s+([^,]+)/i) ||
       text.match(/To request\s+([^,]+)/i);
-    const softwareTitle = swMatch ? swMatch[1].trim() : 'Software License';
+    const softwareTitle = swMatch ? swMatch[1].trim() : firstLine;
     const uuidMatch = text.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
 
     const fields = [];
-    if (text.toLowerCase().includes('justification')) {
+    const bulletLines = text.split('\n').filter((l) => l.trim().startsWith('-') || l.trim().startsWith('*'));
+    for (const bLine of bulletLines) {
+      const cleanField = bLine.replace(/^[\s*•-]+/, '').trim();
+      if (!cleanField) continue;
+      const isNum = cleanField.toLowerCase().includes('days') || cleanField.toLowerCase().includes('term');
       fields.push({
-        name: 'justification',
-        label: 'Business Justification',
-        placeholder: 'Please enter the specific business reason for requesting this license...',
+        name: cleanField.toLowerCase().replace(/[^a-z0-9_]+/g, '_'),
+        label: cleanField,
+        placeholder: `Enter ${cleanField}...`,
         required: true,
-        type: 'text' as const,
-      });
-    }
-    if (text.toLowerCase().includes('term_days') || text.toLowerCase().includes('duration')) {
-      fields.push({
-        name: 'term_days',
-        label: 'Requested Term (Days)',
-        placeholder: 'e.g. 365',
-        required: true,
-        type: 'number' as const,
-      });
-    }
-    if (fields.length === 0) {
-      fields.push({
-        name: 'justification',
-        label: 'Justification / Notes',
-        placeholder: 'Enter justification...',
-        required: true,
-        type: 'text' as const,
+        type: isNum ? ('number' as const) : ('text' as const),
       });
     }
 
@@ -992,7 +991,7 @@ export function dispatchToolNativeBlock(
       blockType: 'FORM_GATE',
       softwareTitle,
       softwareId: uuidMatch ? uuidMatch[1] : undefined,
-      prompt: 'Additional business justification or term parameters are required before submission.',
+      prompt: firstLine,
       fields,
     } as FormGateBlock;
   }
@@ -1002,20 +1001,24 @@ export function dispatchToolNativeBlock(
     text.includes('Your request has been submitted') ||
     text.startsWith('Selected software:')
   ) {
+    const details: Record<string, string> = {};
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const l of lines) {
+      const m = l.match(/^[-*•\s]*([A-Za-z\s_]+):\s*(.+)$/);
+      if (m && !m[1].toLowerCase().includes('do you want') && !m[1].toLowerCase().includes('your request')) {
+        details[m[1].trim()] = m[2].trim();
+      }
+    }
+
     if (text.includes('Your request has been submitted')) {
+      const status = details['Status'] || '';
       block = {
         blockType: 'ACTION_CONFIRMATION',
-        headline: 'Request Submitted Successfully',
-        target: 'SAM License Pipeline',
-        status: 'submitted',
-        details: {
-          'Submission State': 'Queued for fulfillment',
-          'Next Step': 'Fulfillment desk notification dispatched',
-        },
-        actions: [
-          { id: 'view_status', label: 'View Request Status', style: 'primary' },
-          { id: 'dismiss', label: 'Dismiss', style: 'secondary' },
-        ],
+        headline: firstLine,
+        target: details['Software'] || details['Request'] || '',
+        status,
+        details: Object.keys(details).length > 0 ? details : undefined,
+        actions: [],
       } as ActionConfirmationBlock;
     } else {
       const swName = text
@@ -1025,13 +1028,11 @@ export function dispatchToolNativeBlock(
         .trim();
       block = {
         blockType: 'ACTION_CONFIRMATION',
-        headline: `Confirm License Request`,
+        headline: firstLine,
         target: swName,
-        status: 'pending',
-        actions: [
-          { id: 'confirm', label: `Confirm Request: ${swName}`, style: 'primary' },
-          { id: 'cancel', label: 'Cancel', style: 'secondary' },
-        ],
+        status: details['Approval policy'] || '',
+        details: Object.keys(details).length > 0 ? details : undefined,
+        actions: [],
       } as ActionConfirmationBlock;
     }
   }
@@ -1044,9 +1045,9 @@ export function dispatchToolNativeBlock(
     block = {
       blockType: 'SYSTEM_ALERT',
       severity: 'error',
-      headline: 'Agent Execution Interrupted',
-      message: text,
-      canRetry: true,
+      headline: firstLine,
+      message: text.replace(firstLine, '').trim() || text,
+      canRetry: false,
     } as SystemAlertBlock;
   }
   // 7. MULTI-ITEM PIPELINE TABLE (ONLY WHEN THERE ARE 2 OR MORE DISTINCT DEALS WITH UUIDs, AND NOT A SINGLE DEAL WITH NUMBERED CONTACTS/ACTIVITIES)
@@ -1119,14 +1120,14 @@ export function dispatchToolNativeBlock(
 
       if (uuidMatch || fields['Opportunity UUID']) {
         const rawVal = fields['Deal Value'];
-        const formattedVal = rawVal ? formatCurrencyValue(rawVal) : 'Not provided';
+        const formattedVal = rawVal ? formatCurrencyValue(rawVal) : '';
         rows.push({
           num,
           id: rowId,
           name,
           dealValue: formattedVal,
-          closeDate: fields['Close Date'] || 'Not provided',
-          healthScore: fields['Health Score'] || 'Not provided',
+          closeDate: fields['Close Date'] || '',
+          healthScore: fields['Health Score'] || '',
           labels: fields['Labels'] ? fields['Labels'].split(',').map((s) => cleanMd(s)).filter(Boolean) : [],
           company: fields['Company'] || undefined,
           industry: fields['Industry'] || undefined,
@@ -1148,7 +1149,7 @@ export function dispatchToolNativeBlock(
       ...otherDiscovered,
     ];
 
-    // Extract suggested actions cleanly
+    // Extract suggested actions cleanly from raw text
     const actions: string[] = [];
     const actionMatches = (actionsText || text).match(/\n\d+\.\s+(Show activities|Log a call|Add a note|Upload a document|Apply a label|View the 360)[^\n]*/gi);
     if (actionMatches) {
@@ -1159,11 +1160,11 @@ export function dispatchToolNativeBlock(
 
     block = {
       blockType: 'PIPELINE_TABLE',
-      title: 'Active CRM Deals & Opportunity Pipeline',
+      title: firstLine.includes(':') || firstLine.match(/^\d+\./) ? 'Opportunities' : firstLine,
       totalCount: rows.length,
       columns,
       rows,
-      suggestedActions: actions.length > 0 ? actions : ['Show activities for a lead', 'Log a call', 'Add note'],
+      suggestedActions: actions,
       summaryKpis: computePipelineKpis(rows),
       detectedFormat: 'COLON_LIST',
     } as PipelineTableBlock;
@@ -1209,18 +1210,18 @@ export function dispatchToolNativeBlock(
     block = {
       blockType: 'SOFTWARE_SPEC',
       title,
-      softwareId: swUuid ? swUuid[1] : 'Unknown UUID',
+      softwareId: swUuid ? swUuid[1] : '',
       revisionId: revMatch ? revMatch[1] : undefined,
-      publisher: pubMatch ? pubMatch[1].trim() : (title.toLowerCase().includes('office') || title.toLowerCase().includes('dynamics') ? 'Microsoft' : title.toLowerCase().includes('fusion') ? 'Autodesk' : 'Adobe'),
-      description: descMatch ? descMatch[1].trim() : 'Standard enterprise catalog product specification with active licensing terms.',
-      licensingUnit: unitMatch ? unitMatch[1].trim() : 'named_user',
-      termPolicy: policyMatch ? policyMatch[1].trim() : 'REQUESTER_SELECTABLE',
-      approval: appMatch ? appMatch[1].trim() : 'Needs Approval',
-      cost: costMatch ? costMatch[1].trim() : '0.00',
-      minQuantity: minQtyMatch ? minQtyMatch[1].trim() : '1.0',
-      maxQuantity: maxQtyMatch ? maxQtyMatch[1].trim() : '1.0',
-      requestable: true,
-      manualFulfillment: true,
+      publisher: pubMatch ? pubMatch[1].trim() : '',
+      description: descMatch ? descMatch[1].trim() : '',
+      licensingUnit: unitMatch ? unitMatch[1].trim() : '',
+      termPolicy: policyMatch ? policyMatch[1].trim() : '',
+      approval: appMatch ? appMatch[1].trim() : '',
+      cost: costMatch ? costMatch[1].trim() : '',
+      minQuantity: minQtyMatch ? minQtyMatch[1].trim() : '',
+      maxQuantity: maxQtyMatch ? maxQtyMatch[1].trim() : '',
+      requestable: text.toLowerCase().includes('request'),
+      manualFulfillment: text.toLowerCase().includes('manual'),
       attributes,
     } as SoftwareSpecBlock;
   }
@@ -1327,7 +1328,7 @@ export function dispatchToolNativeBlock(
           const qtyMatch = l.match(/Quantity:\s*([0-9.]+)/i);
           const priceMatch = l.match(/(?:Agreed price|Unit Price|Price):\s*(\$[0-9,.]+)/i) || l.match(/(\$[0-9,.]+)/);
           const r1 = l.replace(/\(product_id.*$/, '');
-          const itemTitle = cleanMd(r1.replace(/^[\s*•\-]+/, ''));
+          const itemTitle = cleanMd(r1.replace(/^[\s*•-]+/, ''));
           if (itemTitle) {
             lineItems.push({
               title: itemTitle,
@@ -1369,12 +1370,12 @@ export function dispatchToolNativeBlock(
         const quoteMatch = line.match(/[“"‘]([^”"’]+)[”"’]/);
         const actTitleMatch = quoteMatch ? quoteMatch[1] : line.match(/Title:\s*([^\n–—]+)/i)?.[1];
         const statusMatch = line.match(/Status:\s*([^\s–—,]+)/i) || line.match(/\b(completed|pending|in_progress)\b/i);
-        const dueMatch = line.match(/(?:Due date|due):\s*([0-9\-]+)/i);
+        const dueMatch = line.match(/(?:Due date|due):\s*([0-9-]+)/i);
         const assignedMatch = line.match(/(?:Assigned to|assigned to):\s*([^\s–—,]+)/i);
         const actDescMatch = line.match(/(?:Description|description):\s*([^\n]+)/i);
 
         if (line.startsWith('-') || line.startsWith('*') || line.match(/^\d+\./)) {
-          const cleanLine = line.replace(/^\d+\.\s*/, '').replace(/^[\s*•\-]+/, '');
+          const cleanLine = line.replace(/^\d+\.\s*/, '').replace(/^[\s*•-]+/, '');
           let actTitle = actTitleMatch ? cleanMd(actTitleMatch) : cleanMd(cleanLine.split(/[–—]/)[0]);
           if (!actTitle || actTitle.length < 2) actTitle = 'Activity Record';
 
@@ -1411,7 +1412,7 @@ export function dispatchToolNativeBlock(
             type: typeMatch ? cleanMd(typeMatch[1]).toLowerCase() : 'activity',
             title: titleMatch ? cleanMd(titleMatch[1]) : cleanMd(header.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '')),
             status: statusMatch ? cleanMd(statusMatch[1]).toLowerCase() : 'completed',
-            assignedTo: assignedMatch ? cleanMd(assignedMatch[1]) : 'sunil',
+            assignedTo: assignedMatch ? cleanMd(assignedMatch[1]) : '',
             dueDate: dueMatch ? cleanMd(dueMatch[1]) : undefined,
             description: descMatch ? cleanMd(descMatch[1]) : (titleMatch ? cleanMd(titleMatch[1]) : header),
           });
@@ -1447,32 +1448,34 @@ export function dispatchToolNativeBlock(
       }
     }
 
+    const docMatch = text.match(/Documents:\s*([^\n]+)/i);
+
     block = {
       blockType: 'DEAL_360',
       title,
       description: descMatch ? cleanMd(descMatch[1]) : undefined,
       opportunityId,
       company: {
-        name: compMatch ? cleanMd(compMatch[1]) : 'Canonical Enterprise',
+        name: compMatch ? cleanMd(compMatch[1]) : '',
         companyId: compIdMatch ? compIdMatch[1] : undefined,
         profile: compProfileMatch ? compProfileMatch[1].trim() : undefined,
       },
-      owner: ownerMatch ? cleanMd(ownerMatch[1]) : 'sunil',
-      dealValue: valMatch ? cleanMd(valMatch[1]) : 'Not provided',
-      closeDate: dateMatch ? cleanMd(dateMatch[1]) : 'Not provided',
-      healthScore: healthMatch ? cleanMd(healthMatch[1]) : 'Not provided',
+      owner: ownerMatch ? cleanMd(ownerMatch[1]) : '',
+      dealValue: valMatch ? cleanMd(valMatch[1]) : '',
+      closeDate: dateMatch ? cleanMd(dateMatch[1]) : '',
+      healthScore: healthMatch ? cleanMd(healthMatch[1]) : '',
       manualProbability: manualProbMatch ? cleanMd(manualProbMatch[1]) : undefined,
       aiProbability: aiProbMatch
         ? {
             score: aiProbMatch[1].trim(),
-            rationale: aiRatMatch ? aiRatMatch[1].trim() : 'No AI rationale recorded.',
+            rationale: aiRatMatch ? aiRatMatch[1].trim() : '',
           }
         : undefined,
-      labels: labels.length > 0 ? labels : ['New Inquiry'],
+      labels,
       lineItems,
       activities,
       stakeholders,
-      documents: text.includes('Documents: None') ? 'None' : 'Standard Attachment',
+      documents: docMatch ? cleanMd(docMatch[1]) : undefined,
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
     } as Deal360Block;
   }

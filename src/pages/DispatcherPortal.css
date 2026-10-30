@@ -1,0 +1,396 @@
+/* ==========================================================================
+   DISPATCHER PORTAL - STRICT MINIMALIST SPLIT VIEW
+   Controls: ONLY Arrow marks to 1 to 100
+   Layout: Input (Left) | Output (Right)
+   Zero extra features, zero synthetic texts
+   ========================================================================== */
+
+.portal-root {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #0b0f19;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+}
+
+/* 1. HEADER: ONLY ARROW CONTROLS TO 1 TO 100 */
+.portal-header {
+  height: 48px;
+  min-height: 48px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 10;
+}
+
+.nav-arrow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-arrow-btn:hover {
+  background: #334155;
+  border-color: #475569;
+  color: #ffffff;
+}
+
+.nav-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-input-num {
+  width: 44px;
+  background: #020617;
+  border: 1px solid #334155;
+  color: #38bdf8;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.nav-input-num:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+/* 2. SPLIT LAYOUT: INPUT AT LEFT, OUTPUT AT RIGHT */
+.portal-split-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  height: calc(100vh - 48px);
+}
+
+.portal-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.portal-panel.left-panel {
+  border-right: 1px solid #1e293b;
+  background: #070b14;
+}
+
+.portal-panel.right-panel {
+  background: #0b0f19;
+}
+
+.panel-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 20px;
+}
+
+/* 3. LEFT PANEL RAW INPUT (PASTEABLE TEXTAREA) */
+.raw-input-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: transparent;
+  color: #cbd5e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  border: none;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.raw-input-textarea::placeholder {
+  color: #475569;
+}
+
+.raw-input-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 4. RIGHT PANEL CLEAN OUTPUT CARD */
+.output-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.output-main-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+
+.output-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.portal-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  width: fit-content;
+}
+
+.portal-uuid-text {
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  color: #38bdf8;
+  word-break: break-all;
+}
+
+/* Catalog Cards Grid */
+.catalog-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.catalog-item-card {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.catalog-item-card:hover {
+  border-color: #374151;
+  background: #141f33;
+}
+
+.catalog-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.catalog-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f4f6;
+  line-height: 1.4;
+}
+
+.catalog-card-publisher {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  width: fit-content;
+}
+
+.catalog-card-uuid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  color: #9ca3af;
+  background: #090e17;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #1a2333;
+  word-break: break-all;
+}
+
+/* Catalog list (for other blocks) */
+.catalog-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-item-row {
+  background: #131b2e;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.catalog-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catalog-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+/* Tables */
+.portal-table-container {
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  background: #101726;
+}
+
+.portal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.portal-table th {
+  background: #131c2e;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border-bottom: 1px solid #1e293b;
+  white-space: nowrap;
+}
+
+.portal-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #172033;
+  color: #e2e8f0;
+}
+
+.portal-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Key Value Grid */
+.portal-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.portal-kv-card {
+  background: #131b2e;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.portal-k-label {
+  font-size: 10.5px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.portal-v-value {
+  font-size: 13px;
+  color: #f1f5f9;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.highlight-green {
+  color: #34d399 !important;
+}
+
+.highlight-cyan {
+  color: #38bdf8 !important;
+}
+
+/* Pills */
+.portal-pills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.portal-pill {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+}
+
+/* Steps */
+.portal-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portal-step-item {
+  background: #131b2e;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.portal-step-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.portal-step-tool {
+  font-weight: 600;
+  font-size: 13px;
+  color: #f1f5f9;
+}
+
+.portal-step-msg {
+  margin: 0;
+  font-size: 12.5px;
+  color: #94a3b8;
+}

@@ -1,8 +1,8 @@
-import { JeevesBenchmarkPage } from './pages/JeevesBenchmarkPage';
+import { DispatcherPortal } from './pages/DispatcherPortal';
 import './App.css';
 
 export function App() {
-  return <JeevesBenchmarkPage />;
+  return <DispatcherPortal />;
 }
 
 export default App;

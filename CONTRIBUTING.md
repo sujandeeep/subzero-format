@@ -1,41 +1,37 @@
-# Contributing to SubZero-Format
+# Contributing to Tool-Native Dispatcher
 
-Thank you for your interest in contributing to SubZero-Format! We welcome contributions to make text-to-UI formatting faster, more versatile, and robust.
+Thank you for your interest in contributing to Tool-Native Dispatcher! We welcome contributions to make text-to-UI formatting faster, more versatile, and robust.
 
----
+## Getting Started
 
-## 🛠️ Development Setup
-
-1. **Fork and clone the repository:**
+1. Fork the repository.
+2. Clone your fork locally:
    ```bash
-   git clone https://github.com/your-username/subzero-format.git
+   git clone https://github.com/sujandeeep/subzero-format.git
    cd subzero-format
    ```
-
-2. **Install dependencies:**
+3. Install dependencies:
    ```bash
    npm install
    ```
-
-3. **Start local development server:**
+4. Start the interactive test portal:
    ```bash
    npm run dev
    ```
 
-4. **Run type-checking and build:**
-   ```bash
-   npm run build
-   ```
+## Development Guidelines
 
----
+- **Zero External Dependencies in Dispatcher**: Keep `src/services/toolNativeDispatcher.ts` 100% self-contained without adding runtime dependencies.
+- **Zero Hallucination / Zero Synthetic Fallbacks**: Never hardcode dummy company names, statuses, or fake data.
+- **Verify Lint and Build**:
+  ```bash
+  npm run lint
+  npm run build
+  ```
 
-## 📋 Pull Request Guidelines
+## Submitting Pull Requests
 
-1. **Deterministic Speed is King:** Never introduce secondary network calls, external API dependencies, or blocking operations into `toolNativeDispatcher.ts`. All parsers must complete in `< 1.0ms`.
-2. **Zero Data Loss:** Any new pattern must preserve 100% of UUIDs, identifiers, and custom colon-ended fields.
-3. **Format Support:** If adding a new delimiter or pattern (e.g., YAML, XML, JSONL), include test cases in the test suite.
-
----
-
-## 📄 License
-By contributing, you agree that your contributions will be licensed under the project's [MIT License](LICENSE).
+1. Create a feature branch (`git checkout -b feature/my-new-feature`).
+2. Commit your changes (`git commit -am 'Add some feature'`).
+3. Push to the branch (`git push origin feature/my-new-feature`).
+4. Create a new Pull Request.
