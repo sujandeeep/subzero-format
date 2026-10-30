@@ -1764,13 +1764,14 @@ export function dispatchToolNativeBlock(
     const pubMatch = text.match(/(?:Publisher|Vendor|Provider|Company|Author|Owner):\s*([^\n]+)/i);
     const descMatch = text.match(/(?:Description|Summary|Notes|Details):\s*([^\n]+)/i);
     const costMatch = text.match(/(?:Cost|Price|Budget|Amount|Value):\s*([^\n]+)/i);
-    const statusMatch = text.match(/(?:Status|State|Stage):\s*([^\n]+)/i);
 
-    const titleMatch = firstLine.match(/^\d*\.?\s*(.*?)(?:[0-9a-f]{8}-[0-9a-f]{4}|$)/i);
-    let title = titleMatch && titleMatch[1].trim() ? titleMatch[1].trim() : '';
-    if (!title || title.includes(':')) {
-      const namedMatch = text.match(/(?:^|\n)\s*[-*•]*\s*(?:Title|Name|Subject|Entity):\s*([^\n]+)/i);
-      title = namedMatch ? namedMatch[1].trim() : 'Structured Entity Record';
+    let title = '';
+    const namedMatch = text.match(/(?:^|\n)\s*[-*•]*\s*(?:Item|Product|Title|Name|Entity|Subject):\s*([^\n]+)/i);
+    if (namedMatch) {
+      title = cleanMd(namedMatch[1]);
+    } else {
+      const titleMatch = firstLine.match(/^\d*\.?\s*(.*?)(?:[0-9a-f]{8}-[0-9a-f]{4}|$)/i);
+      title = titleMatch && titleMatch[1].trim() && !titleMatch[1].includes(':') ? titleMatch[1].trim() : (firstLine.split(':')[1]?.trim() || 'Record Overview');
     }
 
     const attributes: Record<string, string> = {};
@@ -1781,21 +1782,21 @@ export function dispatchToolNativeBlock(
         const rawK = l.slice(0, colonIdx).replace(/^[\s*•\-\d.]*/, '').trim();
         const rawV = l.slice(colonIdx + 1).trim();
         if (rawK && rawV && rawK.length < 35 && !rawK.toLowerCase().includes('uuid') && !rawK.toLowerCase().includes('description')) {
-          attributes[normalizeHeader(rawK)] = cleanMd(rawV);
+          attributes[cleanMd(rawK)] = cleanMd(rawV);
         }
       }
     }
 
     block = {
       blockType: 'SOFTWARE_SPEC',
-      title,
+      title: title || 'Record Overview',
       softwareId: swUuid ? swUuid[1] : '',
       maskedSoftwareId: swUuid ? toMaskedUuid(swUuid[1]) : undefined,
       publisher: pubMatch ? cleanMd(pubMatch[1]) : '',
       description: descMatch ? cleanMd(descMatch[1]) : '',
       licensingUnit: '',
       termPolicy: '',
-      approval: statusMatch ? cleanMd(statusMatch[1]) : '',
+      approval: '',
       cost: costMatch ? cleanMd(costMatch[1]).replace(/^\$/, '') : '',
       minQuantity: '',
       maxQuantity: '',

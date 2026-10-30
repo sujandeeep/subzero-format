@@ -16,6 +16,7 @@ import {
 import { JEEVES_100_ITEMS } from '../data/loader';
 import {
   dispatchToolNativeBlock,
+  extractAllUuids,
   type ToolNativeBlock,
   type CatalogGridBlock,
   type PipelineTableBlock,
@@ -942,7 +943,7 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
       );
     }
 
-    // 10. RAW PROSE
+    // 10. STRUCTURED PROSE & UNSTRUCTURED CONTENT
     case 'PROSE': {
       const blk = block as ProseBlock;
       let parsedJson: unknown = null;
@@ -955,21 +956,162 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
         parsedJson = null;
       }
 
-      return (
-        <div className="output-card">
-          {parsedJson ? (
+      if (parsedJson) {
+        return (
+          <div className="output-card">
+            <h2 className="output-main-title">Parsed JSON Payload</h2>
             <pre className="raw-input-pre" style={{ color: '#38bdf8' }}>
               {JSON.stringify(parsedJson, null, 2)}
             </pre>
-          ) : (
-            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {blk.content}
-            </p>
-          )}
+          </div>
+        );
+      }
+
+      return (
+        <div className="output-card">
+          {renderRichStructuredContent(blk.content)}
         </div>
       );
     }
   }
+}
+
+/**
+ * Transforms any raw prose or unstructured text into high-fidelity structured components
+ */
+function renderRichStructuredContent(content: string): React.ReactNode {
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  let title = '';
+  let startIndex = 0;
+  const firstLine = lines[0];
+
+  if (firstLine.startsWith('#')) {
+    title = firstLine.replace(/^#+\s*/, '');
+    startIndex = 1;
+  } else if (!firstLine.includes(':') && firstLine.length < 80 && lines.length > 1) {
+    title = firstLine;
+    startIndex = 1;
+  }
+
+  const kvPairs: Array<{ key: string; val: string }> = [];
+  const bullets: string[] = [];
+  const numberedSteps: Array<{ num: string; text: string }> = [];
+  const paragraphs: string[] = [];
+
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+
+    const kvMatch = line.match(/^[-*•]?\s*([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
+    if (kvMatch && !kvMatch[1].toLowerCase().startsWith('http')) {
+      kvPairs.push({ key: kvMatch[1].trim(), val: kvMatch[2].trim() });
+      continue;
+    }
+
+    const numMatch = line.match(/^(\d+)[\.\)]\s*(.+)$/);
+    if (numMatch) {
+      numberedSteps.push({ num: numMatch[1], text: numMatch[2] });
+      continue;
+    }
+
+    if (line.startsWith('-') || line.startsWith('*') || line.startsWith('•')) {
+      bullets.push(line.replace(/^[-*•]\s*/, ''));
+      continue;
+    }
+
+    paragraphs.push(line);
+  }
+
+  const renderFormattedText = (txt: string) => {
+    const uuidRegex = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+    const parts = txt.split(uuidRegex);
+    return parts.map((part, pIdx) => {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part)) {
+        return <UuidBadge key={pIdx} uuid={part} />;
+      }
+      return <span key={pIdx}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="rich-structured-container">
+      {title && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <h2 className="output-main-title" style={{ margin: 0 }}>{title}</h2>
+          {extractAllUuids(title).map((u, idx) => (
+            <UuidBadge key={idx} uuid={u} />
+          ))}
+        </div>
+      )}
+
+      {kvPairs.length > 0 && (
+        <div className="portal-kv-grid" style={{ marginBottom: '16px' }}>
+          {kvPairs.map((kv, idx) => {
+            const isCurrency = /\$[0-9,.]+|₹[0-9,.]+|€[0-9,.]+/i.test(kv.val);
+            const isStatus = /^(active|completed|in progress|pending|approved|closed|open|failed|success|online)$/i.test(kv.val);
+            const uuidMatch = kv.val.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+
+            return (
+              <div key={idx} className="portal-kv-card">
+                <span className="portal-k-label">{kv.key}</span>
+                {uuidMatch ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{kv.val.replace(uuidMatch[0], '').trim()}</span>
+                    <UuidBadge uuid={uuidMatch[0]} />
+                  </div>
+                ) : isStatus ? (
+                  <span className="portal-badge">{kv.val}</span>
+                ) : (
+                  <span className={`portal-v-value ${isCurrency ? 'highlight-green' : ''}`}>
+                    {kv.val}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {numberedSteps.length > 0 && (
+        <div className="catalog-items-list" style={{ marginBottom: '16px' }}>
+          {numberedSteps.map((step, idx) => (
+            <div key={idx} className="catalog-item-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span className="portal-badge" style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>
+                #{step.num}
+              </span>
+              <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                {renderFormattedText(step.text)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {bullets.length > 0 && (
+        <div className="catalog-items-list" style={{ marginBottom: '16px' }}>
+          {bullets.map((b, idx) => (
+            <div key={idx} className="catalog-item-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ color: '#38bdf8', fontSize: '14px' }}>•</span>
+              <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1' }}>
+                {renderFormattedText(b)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {paragraphs.length > 0 && (
+        <div className="prose-body">
+          {paragraphs.map((p, idx) => (
+            <p key={idx} className="prose-paragraph" style={{ margin: '0 0 10px 0', fontSize: '13px', lineHeight: '1.6', color: '#cbd5e1' }}>
+              {renderFormattedText(p)}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default DispatcherPortal;
