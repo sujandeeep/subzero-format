@@ -171,11 +171,65 @@ export interface ActionConfirmationBlock {
   actions: ActionItem[];
 }
 
+// Structured elements inside rich comments / documents
+export interface RichTableElement {
+  type: 'table';
+  headers: string[];
+  rows: string[][];
+}
+
+export interface RichHeadingElement {
+  type: 'heading';
+  level: number;
+  text: string;
+}
+
+export interface RichRuleElement {
+  type: 'rule';
+  name: string;
+  target?: string;
+  decision?: string;
+  conditions?: string;
+}
+
+export interface RichKvElement {
+  type: 'kv';
+  pairs: Array<{ key: string; val: string }>;
+}
+
+export interface RichStepElement {
+  type: 'step';
+  num: string;
+  text: string;
+}
+
+export interface RichBulletElement {
+  type: 'bullet';
+  text: string;
+}
+
+export interface RichProseElement {
+  type: 'prose';
+  text: string;
+}
+
+export type RichStructuredElement =
+  | RichHeadingElement
+  | RichTableElement
+  | RichRuleElement
+  | RichKvElement
+  | RichStepElement
+  | RichBulletElement
+  | RichProseElement;
+
 // 7. SAM License Ticket
 export interface TicketComment {
   author: string;
   date: string;
   text: string;
+  structuredElements?: RichStructuredElement[];
+  rules?: RichRuleElement[];
+  tables?: RichTableElement[];
 }
 
 export interface LicenseTicketBlock {
@@ -194,6 +248,8 @@ export interface LicenseTicketBlock {
   maskedResourceWorkUuid?: MaskedUuid;
   action?: string;
   comments: TicketComment[];
+  parsedRules?: RichRuleElement[];
+  parsedTables?: RichTableElement[];
 }
 
 // 8. System Alert
@@ -210,6 +266,9 @@ export interface ProseBlock {
   blockType: 'PROSE';
   content: string;
   isDoNotFormat: boolean;
+  structuredElements?: RichStructuredElement[];
+  parsedRules?: RichRuleElement[];
+  parsedTables?: RichTableElement[];
 }
 
 // 10. Workflow Audit Log
@@ -928,6 +987,177 @@ function extractStakeholders(text: string): Deal360Block['stakeholders'] {
 }
 
 /**
+ * Decomposes rich prose or ticket body text into structured elements (tables, rules, sections, steps, bullets)
+ */
+export function parseRichContent(rawText: string): RichStructuredElement[] {
+  const elements: RichStructuredElement[] = [];
+  const lines = rawText.split('\n').map((l) => l.trimEnd());
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    if (!line) {
+      i++;
+      continue;
+    }
+
+    // Dividers: ====== or ------ or ---
+    if (/^[=\-]{3,}$/.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Markdown Table: starts with | and ends with |
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 2) {
+        const rawHeaders = tableLines[0].split('|').map((c) => c.trim()).filter(Boolean);
+        const hasDivider = tableLines.length > 1 && /^\|(?:\s*:?-+:?\s*\|)+$/.test(tableLines[1]);
+        const dataRowsStart = hasDivider ? 2 : 1;
+        const rows: string[][] = [];
+
+        for (let r = dataRowsStart; r < tableLines.length; r++) {
+          const rawCells = tableLines[r].split('|').map((c) => c.trim());
+          const cells = rawCells.slice(1, rawCells.length - 1);
+          rows.push(cells);
+        }
+
+        elements.push({
+          type: 'table',
+          headers: rawHeaders,
+          rows,
+        });
+        continue;
+      }
+    }
+
+    // Big Section Banner (e.g. "1. FULL TEXT OF THE POLICY REQUEST...")
+    const bannerMatch = line.match(/^(\d+)\.\s+([A-Z0-9_\s\(\):\-]{4,}:?)$/);
+    if (
+      bannerMatch &&
+      (line === line.toUpperCase() ||
+        line.includes('POLICY') ||
+        line.includes('ANALYSIS') ||
+        line.includes('DETAILS'))
+    ) {
+      elements.push({ type: 'heading', level: 1, text: line.replace(/:$/, '') });
+      i++;
+      continue;
+    }
+
+    // Headings with # (e.g. ## 1. What the new policy adds...)
+    if (line.startsWith('#')) {
+      const levelMatch = line.match(/^(#+)\s*(.*)$/);
+      const level = levelMatch ? levelMatch[1].length : 2;
+      const text = levelMatch ? levelMatch[2].trim() : line.replace(/^#+\s*/, '');
+      elements.push({ type: 'heading', level, text });
+      i++;
+      continue;
+    }
+
+    // Rule definition: e.g. "- Rule: rule_name"
+    if (line.match(/^[-*•]?\s*Rule:\s*(.+)$/i)) {
+      const ruleMatch = line.match(/^[-*•]?\s*Rule:\s*(.+)$/i);
+      const ruleName = ruleMatch ? ruleMatch[1].trim() : '';
+      let target = '';
+      let decision = '';
+      let conditions = '';
+      i++;
+
+      while (
+        i < lines.length &&
+        lines[i].trim().length > 0 &&
+        !lines[i].trim().startsWith('- Rule') &&
+        !lines[i].trim().startsWith('=') &&
+        !lines[i].trim().startsWith('#')
+      ) {
+        const sub = lines[i].trim();
+        if (sub.startsWith('Target:')) target = sub.replace(/^Target:\s*/i, '');
+        else if (sub.startsWith('Decision:')) decision = sub.replace(/^Decision:\s*/i, '');
+        else if (sub.startsWith('Conditions:')) conditions = sub.replace(/^Conditions:\s*/i, '');
+        else break;
+        i++;
+      }
+
+      elements.push({
+        type: 'rule',
+        name: ruleName,
+        target,
+        decision,
+        conditions,
+      });
+      continue;
+    }
+
+    if (line.toLowerCase() === 'rules:') {
+      i++;
+      continue;
+    }
+
+    // Standalone number on its own line: e.g. "#1" or "1." followed by text on next line
+    const standaloneNumMatch = line.match(/^#?(\d+)[\.\)]?$/);
+    if (standaloneNumMatch && i + 1 < lines.length && !lines[i + 1].trim().startsWith('|')) {
+      elements.push({ type: 'step', num: standaloneNumMatch[1], text: lines[i + 1].trim() });
+      i += 2;
+      continue;
+    }
+
+    // Numbered steps: 1. ... 2. ...
+    const numMatch = line.match(/^(\d+)[\.\)]\s*(.+)$/);
+    if (numMatch && !line.includes('|')) {
+      elements.push({ type: 'step', num: numMatch[1], text: numMatch[2] });
+      i++;
+      continue;
+    }
+
+    // Standalone bullet on its own line: e.g. "•" or "-" followed by text on next line
+    if ((line === '•' || line === '-' || line === '*') && i + 1 < lines.length && !lines[i + 1].trim().startsWith('|')) {
+      elements.push({ type: 'bullet', text: lines[i + 1].trim() });
+      i += 2;
+      continue;
+    }
+
+    // Bullets: - ... * ... • ...
+    if ((line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ') || line.startsWith('•')) && !line.includes('|')) {
+      elements.push({ type: 'bullet', text: line.replace(/^[-*•]\s*/, '') });
+      i++;
+      continue;
+    }
+
+    // Key-Value pairs: Key: Value (group consecutive pairs into a kv block)
+    const kvMatch = line.match(/^([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
+    if (kvMatch && !kvMatch[1].toLowerCase().startsWith('http') && !line.includes('|')) {
+      const pairs: Array<{ key: string; val: string }> = [{ key: kvMatch[1].trim(), val: kvMatch[2].trim() }];
+      i++;
+      while (i < lines.length) {
+        const nextLine = lines[i].trim();
+        const nextKv = nextLine.match(/^([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
+        if (nextKv && !nextKv[1].toLowerCase().startsWith('http') && !nextLine.includes('|')) {
+          pairs.push({ key: nextKv[1].trim(), val: nextKv[2].trim() });
+          i++;
+        } else {
+          break;
+        }
+      }
+      elements.push({ type: 'kv', pairs });
+      continue;
+    }
+
+    // Default: Prose paragraph
+    elements.push({ type: 'prose', text: line });
+    i++;
+  }
+
+  return elements;
+}
+
+/**
  * Resilient Schema-First Parser & Dispatcher
  *
  * Guarantees zero data loss:
@@ -1252,7 +1482,10 @@ export function dispatchToolNativeBlock(
       bodyText = bodyText.replace(/\n\s*1\.\s+Add a comment[^\n]*/i, '').trim();
 
       if (author || bodyText) {
-        comments.push({ author, date, text: bodyText });
+        const structuredElements = parseRichContent(bodyText);
+        const rules = structuredElements.filter((el): el is RichRuleElement => el.type === 'rule');
+        const tables = structuredElements.filter((el): el is RichTableElement => el.type === 'table');
+        comments.push({ author, date, text: bodyText, structuredElements, rules, tables });
       }
     }
 
@@ -1271,6 +1504,8 @@ export function dispatchToolNativeBlock(
       resourceWorkUuid: resourceMatch ? resourceMatch[1] : undefined,
       maskedResourceWorkUuid: resourceMatch ? toMaskedUuid(resourceMatch[1]) : undefined,
       comments,
+      parsedRules: comments.flatMap((c) => c.rules || []),
+      parsedTables: comments.flatMap((c) => c.tables || []),
     } as LicenseTicketBlock;
   }
   // 4. FORM GATE / PARAMETER COLLECTION (Items 9, 20, 76)
@@ -1864,10 +2099,16 @@ export function dispatchToolNativeBlock(
   else {
     const isDoNotFormat = text.startsWith('DO-NOT-FORMAT');
     const cleanContent = isDoNotFormat ? text.replace(/^DO-NOT-FORMAT\s*/i, '').trim() : text;
+    const structuredElements = parseRichContent(cleanContent);
+    const parsedRules = structuredElements.filter((el): el is RichRuleElement => el.type === 'rule');
+    const parsedTables = structuredElements.filter((el): el is RichTableElement => el.type === 'table');
     block = {
       blockType: 'PROSE',
       content: cleanContent,
       isDoNotFormat,
+      structuredElements,
+      parsedRules,
+      parsedTables,
     } as ProseBlock;
   }
 
