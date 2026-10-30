@@ -16,7 +16,7 @@ import {
 import { JEEVES_100_ITEMS } from '../data/loader';
 import {
   dispatchToolNativeBlock,
-  extractAllUuids,
+  cleanMd,
   type ToolNativeBlock,
   type CatalogGridBlock,
   type PipelineTableBlock,
@@ -828,25 +828,31 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
       const blk = block as LicenseTicketBlock;
       return (
         <div className="output-card">
-          {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <h2 className="output-main-title" style={{ margin: 0 }}>
+              {blk.ticketNumber ? `Ticket #${blk.ticketNumber}` : ''}
+              {blk.title && blk.title !== `Ticket #${blk.ticketNumber}` ? (blk.ticketNumber ? `: ${blk.title}` : blk.title) : ''}
+            </h2>
+            {blk.samRequestUuid && <UuidBadge uuid={blk.samRequestUuid} />}
+          </div>
 
           <div className="portal-kv-grid">
             {blk.ticketNumber && (
               <div className="portal-kv-card">
-                <span className="portal-k-label">Ticket</span>
+                <span className="portal-k-label">Ticket ID</span>
                 <span className="portal-v-value">#{blk.ticketNumber}</span>
               </div>
             )}
             {blk.status && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Status</span>
-                <span className="portal-v-value">{blk.status}</span>
+                <span className="portal-badge">{blk.status}</span>
               </div>
             )}
-            {blk.customer && (
+            {blk.priority && (
               <div className="portal-kv-card">
-                <span className="portal-k-label">Customer</span>
-                <span className="portal-v-value">{blk.customer}</span>
+                <span className="portal-k-label">Priority</span>
+                <span className="portal-v-value">{blk.priority}</span>
               </div>
             )}
             {blk.group && (
@@ -855,10 +861,10 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                 <span className="portal-v-value">{blk.group}</span>
               </div>
             )}
-            {blk.priority && (
+            {blk.customer && (
               <div className="portal-kv-card">
-                <span className="portal-k-label">Priority</span>
-                <span className="portal-v-value">{blk.priority}</span>
+                <span className="portal-k-label">Customer</span>
+                <span className="portal-v-value">{blk.customer}</span>
               </div>
             )}
             {blk.created && (
@@ -875,29 +881,32 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
             )}
             {blk.samRequestUuid && (
               <div className="portal-kv-card">
-                <span className="portal-k-label">SAM Request UUID</span>
+                <span className="portal-k-label">HITL / SAM Request</span>
                 <UuidBadge uuid={blk.samRequestUuid} />
               </div>
             )}
             {blk.resourceWorkUuid && (
               <div className="portal-kv-card">
-                <span className="portal-k-label">Resource Work UUID</span>
+                <span className="portal-k-label">Resource Work</span>
                 <UuidBadge uuid={blk.resourceWorkUuid} />
               </div>
             )}
           </div>
 
           {blk.comments && blk.comments.length > 0 && (
-            <div className="catalog-items-list" style={{ marginTop: '14px' }}>
+            <div style={{ marginTop: '20px' }}>
               {blk.comments.map((c, idx) => (
-                <div key={idx} className="catalog-item-row">
-                  <div className="catalog-item-header">
-                    <span className="catalog-item-name">{c.author}</span>
+                <div key={idx} className="output-card" style={{ background: 'rgba(15, 23, 42, 0.6)', borderColor: '#1e293b', marginBottom: '16px' }}>
+                  <div className="catalog-item-header" style={{ marginBottom: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="portal-badge" style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}>Public Comment</span>
+                      <span className="catalog-item-name" style={{ color: '#f1f5f9' }}>{c.author}</span>
+                    </div>
                     {c.date && <span style={{ fontSize: '12px', color: '#64748b' }}>{c.date}</span>}
                   </div>
-                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                    {c.text}
-                  </p>
+                  <div>
+                    {renderRichStructuredContent(c.text)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -976,140 +985,454 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
   }
 }
 
+interface RichTable {
+  type: 'table';
+  headers: string[];
+  rows: string[][];
+}
+
+interface RichHeading {
+  type: 'heading';
+  level: number;
+  text: string;
+}
+
+interface RichRule {
+  type: 'rule';
+  name: string;
+  target?: string;
+  decision?: string;
+  conditions?: string;
+}
+
+interface RichKv {
+  type: 'kv';
+  pairs: Array<{ key: string; val: string }>;
+}
+
+interface RichStep {
+  type: 'step';
+  num: string;
+  text: string;
+}
+
+interface RichBullet {
+  type: 'bullet';
+  text: string;
+}
+
+interface RichProse {
+  type: 'prose';
+  text: string;
+}
+
+type RichElement = RichHeading | RichTable | RichRule | RichKv | RichStep | RichBullet | RichProse;
+
+function parseRichContent(rawText: string): RichElement[] {
+  const elements: RichElement[] = [];
+  const lines = rawText.split('\n').map((l) => l.trimEnd());
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    if (!line) {
+      i++;
+      continue;
+    }
+
+    // Dividers: ====== or ------ or ---
+    if (/^[=\-]{3,}$/.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Markdown Table: starts with | and ends with |
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 2) {
+        const rawHeaders = tableLines[0].split('|').map((c) => c.trim()).filter(Boolean);
+        const hasDivider = tableLines.length > 1 && /^\|(?:\s*:?-+:?\s*\|)+$/.test(tableLines[1]);
+        const dataRowsStart = hasDivider ? 2 : 1;
+        const rows: string[][] = [];
+
+        for (let r = dataRowsStart; r < tableLines.length; r++) {
+          const rawCells = tableLines[r].split('|').map((c) => c.trim());
+          const cells = rawCells.slice(1, rawCells.length - 1);
+          rows.push(cells);
+        }
+
+        elements.push({
+          type: 'table',
+          headers: rawHeaders,
+          rows,
+        });
+        continue;
+      }
+    }
+
+    // Big Section Banner (e.g. "1. FULL TEXT OF THE POLICY REQUEST...")
+    const bannerMatch = line.match(/^(\d+)\.\s+([A-Z0-9_\s\(\):\-]{4,}:?)$/);
+    if (
+      bannerMatch &&
+      (line === line.toUpperCase() ||
+        line.includes('POLICY') ||
+        line.includes('ANALYSIS') ||
+        line.includes('DETAILS'))
+    ) {
+      elements.push({ type: 'heading', level: 1, text: line.replace(/:$/, '') });
+      i++;
+      continue;
+    }
+
+    // Headings with # (e.g. ## 1. What the new policy adds...)
+    if (line.startsWith('#')) {
+      const levelMatch = line.match(/^(#+)\s*(.*)$/);
+      const level = levelMatch ? levelMatch[1].length : 2;
+      const text = levelMatch ? levelMatch[2].trim() : line.replace(/^#+\s*/, '');
+      elements.push({ type: 'heading', level, text });
+      i++;
+      continue;
+    }
+
+    // Rule definition: e.g. "- Rule: l4_flight_travel_allow"
+    if (line.match(/^[-*•]?\s*Rule:\s*(.+)$/i)) {
+      const ruleMatch = line.match(/^[-*•]?\s*Rule:\s*(.+)$/i);
+      const ruleName = ruleMatch ? ruleMatch[1].trim() : '';
+      let target = '';
+      let decision = '';
+      let conditions = '';
+      i++;
+
+      while (
+        i < lines.length &&
+        lines[i].trim().length > 0 &&
+        !lines[i].trim().startsWith('- Rule') &&
+        !lines[i].trim().startsWith('=') &&
+        !lines[i].trim().startsWith('#')
+      ) {
+        const sub = lines[i].trim();
+        if (sub.startsWith('Target:')) target = sub.replace(/^Target:\s*/i, '');
+        else if (sub.startsWith('Decision:')) decision = sub.replace(/^Decision:\s*/i, '');
+        else if (sub.startsWith('Conditions:')) conditions = sub.replace(/^Conditions:\s*/i, '');
+        else break;
+        i++;
+      }
+
+      elements.push({
+        type: 'rule',
+        name: ruleName,
+        target,
+        decision,
+        conditions,
+      });
+      continue;
+    }
+
+    if (line.toLowerCase() === 'rules:') {
+      i++;
+      continue;
+    }
+
+    // Numbered steps: 1. ... 2. ...
+    const numMatch = line.match(/^(\d+)[\.\)]\s*(.+)$/);
+    if (numMatch && !line.includes('|')) {
+      elements.push({ type: 'step', num: numMatch[1], text: numMatch[2] });
+      i++;
+      continue;
+    }
+
+    // Bullets: - ... * ... • ...
+    if ((line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) && !line.includes('|')) {
+      elements.push({ type: 'bullet', text: line.replace(/^[-*•]\s*/, '') });
+      i++;
+      continue;
+    }
+
+    // Key-Value pairs: Key: Value (group consecutive pairs into a kv block)
+    const kvMatch = line.match(/^([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
+    if (kvMatch && !kvMatch[1].toLowerCase().startsWith('http') && !line.includes('|')) {
+      const pairs: Array<{ key: string; val: string }> = [{ key: kvMatch[1].trim(), val: kvMatch[2].trim() }];
+      i++;
+      while (i < lines.length) {
+        const nextLine = lines[i].trim();
+        const nextKv = nextLine.match(/^([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
+        if (nextKv && !nextKv[1].toLowerCase().startsWith('http') && !nextLine.includes('|')) {
+          pairs.push({ key: nextKv[1].trim(), val: nextKv[2].trim() });
+          i++;
+        } else {
+          break;
+        }
+      }
+      elements.push({ type: 'kv', pairs });
+      continue;
+    }
+
+    // Default: Prose paragraph
+    elements.push({ type: 'prose', text: line });
+    i++;
+  }
+
+  return elements;
+}
+
+function renderFormattedInline(text: string, allowTitleUuidBadge: boolean = true): React.ReactNode {
+  const uuidRegex = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+  const parts = text.split(uuidRegex);
+
+  return parts.map((part, pIdx) => {
+    if (allowTitleUuidBadge && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part)) {
+      return <UuidBadge key={pIdx} uuid={part} />;
+    }
+
+    const subParts = part.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+    return (
+      <span key={pIdx}>
+        {subParts.map((sub, sIdx) => {
+          if (sub.startsWith('**') && sub.endsWith('**') && sub.length >= 4) {
+            return (
+              <strong key={sIdx} style={{ color: '#f8fafc', fontWeight: 600 }}>
+                {sub.slice(2, -2)}
+              </strong>
+            );
+          }
+          if (sub.startsWith('*') && sub.endsWith('*') && sub.length >= 2) {
+            return (
+              <em key={sIdx} style={{ color: '#94a3b8' }}>
+                {sub.slice(1, -1)}
+              </em>
+            );
+          }
+          if (sub.startsWith('`') && sub.endsWith('`') && sub.length >= 2) {
+            return (
+              <code
+                key={sIdx}
+                style={{
+                  background: '#0f172a',
+                  color: '#38bdf8',
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  fontSize: '11.5px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {sub.slice(1, -1)}
+              </code>
+            );
+          }
+          return sub;
+        })}
+      </span>
+    );
+  });
+}
+
+function renderTableCellContent(rawCell: string, isTitleCol: boolean): React.ReactNode {
+  const lines = rawCell.split(/<br\s*\/?>/i).map((l) => l.trim()).filter(Boolean);
+  if (lines.length <= 1) {
+    return renderFormattedInline(rawCell, !isTitleCol);
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {lines.map((line, lIdx) => (
+        <div key={lIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+          {line.startsWith('•') || line.startsWith('-') ? (
+            <>
+              <span style={{ color: '#38bdf8', fontSize: '12px', lineHeight: '1.4' }}>•</span>
+              <span>{renderFormattedInline(line.replace(/^[•\-]\s*/, ''), !isTitleCol)}</span>
+            </>
+          ) : (
+            renderFormattedInline(line, !isTitleCol)
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Transforms any raw prose or unstructured text into high-fidelity structured components
  */
 function renderRichStructuredContent(content: string): React.ReactNode {
-  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
-  if (lines.length === 0) return null;
-
-  let title = '';
-  let startIndex = 0;
-  const firstLine = lines[0];
-
-  if (firstLine.startsWith('#')) {
-    title = firstLine.replace(/^#+\s*/, '');
-    startIndex = 1;
-  } else if (!firstLine.includes(':') && firstLine.length < 80 && lines.length > 1) {
-    title = firstLine;
-    startIndex = 1;
-  }
-
-  const kvPairs: Array<{ key: string; val: string }> = [];
-  const bullets: string[] = [];
-  const numberedSteps: Array<{ num: string; text: string }> = [];
-  const paragraphs: string[] = [];
-
-  for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i];
-
-    const kvMatch = line.match(/^[-*•]?\s*([a-zA-Z0-9_\s]{2,30}):\s*(.+)$/);
-    if (kvMatch && !kvMatch[1].toLowerCase().startsWith('http')) {
-      kvPairs.push({ key: kvMatch[1].trim(), val: kvMatch[2].trim() });
-      continue;
-    }
-
-    const numMatch = line.match(/^(\d+)[\.\)]\s*(.+)$/);
-    if (numMatch) {
-      numberedSteps.push({ num: numMatch[1], text: numMatch[2] });
-      continue;
-    }
-
-    if (line.startsWith('-') || line.startsWith('*') || line.startsWith('•')) {
-      bullets.push(line.replace(/^[-*•]\s*/, ''));
-      continue;
-    }
-
-    paragraphs.push(line);
-  }
-
-  const renderFormattedText = (txt: string) => {
-    const uuidRegex = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
-    const parts = txt.split(uuidRegex);
-    return parts.map((part, pIdx) => {
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part)) {
-        return <UuidBadge key={pIdx} uuid={part} />;
-      }
-      return <span key={pIdx}>{part}</span>;
-    });
-  };
+  const elements = parseRichContent(content);
+  if (elements.length === 0) return null;
 
   return (
     <div className="rich-structured-container">
-      {title && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <h2 className="output-main-title" style={{ margin: 0 }}>{title}</h2>
-          {extractAllUuids(title).map((u, idx) => (
-            <UuidBadge key={idx} uuid={u} />
-          ))}
-        </div>
-      )}
-
-      {kvPairs.length > 0 && (
-        <div className="portal-kv-grid" style={{ marginBottom: '16px' }}>
-          {kvPairs.map((kv, idx) => {
-            const isCurrency = /\$[0-9,.]+|₹[0-9,.]+|€[0-9,.]+/i.test(kv.val);
-            const isStatus = /^(active|completed|in progress|pending|approved|closed|open|failed|success|online)$/i.test(kv.val);
-            const uuidMatch = kv.val.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-
+      {elements.map((el, idx) => {
+        switch (el.type) {
+          case 'heading': {
+            if (el.level === 1) {
+              return (
+                <div key={idx} className="portal-section-header">
+                  <span className="portal-badge" style={{ color: '#38bdf8' }}>SECTION</span>
+                  <span>{cleanMd(el.text)}</span>
+                </div>
+              );
+            }
+            if (el.level === 2) {
+              return (
+                <h3 key={idx} className="portal-section-header" style={{ fontSize: '14px', margin: '18px 0 10px' }}>
+                  {cleanMd(el.text)}
+                </h3>
+              );
+            }
             return (
-              <div key={idx} className="portal-kv-card">
-                <span className="portal-k-label">{kv.key}</span>
-                {uuidMatch ? (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <span>{kv.val.replace(uuidMatch[0], '').trim()}</span>
-                    <UuidBadge uuid={uuidMatch[0]} />
+              <h4 key={idx} className="portal-section-subhead">
+                {cleanMd(el.text)}
+              </h4>
+            );
+          }
+
+          case 'table': {
+            return (
+              <div key={idx} className="portal-table-container" style={{ margin: '12px 0 16px' }}>
+                <table className="portal-table">
+                  <thead>
+                    <tr>
+                      {el.headers.map((h, hIdx) => (
+                        <th key={hIdx}>{cleanMd(h)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {el.rows.map((row, rIdx) => (
+                      <tr key={rIdx}>
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} style={cIdx === 0 ? { fontWeight: 600, color: '#f8fafc' } : undefined}>
+                            {renderTableCellContent(cell, cIdx === 0)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+
+          case 'rule': {
+            const isAllow = (el.decision || '').toUpperCase().includes('ALLOW');
+            return (
+              <div key={idx} className="rich-rule-card">
+                <div className="rich-rule-header">
+                  <span className="rich-rule-name">{el.name}</span>
+                  {el.decision && (
+                    <span
+                      className="portal-badge"
+                      style={{
+                        color: isAllow ? '#4ade80' : '#f87171',
+                        borderColor: isAllow ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)',
+                      }}
+                    >
+                      {el.decision}
+                    </span>
+                  )}
+                </div>
+                {el.target && (
+                  <div className="rich-rule-target">
+                    <strong style={{ color: '#64748b' }}>Target:</strong> {el.target}
                   </div>
-                ) : isStatus ? (
-                  <span className="portal-badge">{kv.val}</span>
-                ) : (
-                  <span className={`portal-v-value ${isCurrency ? 'highlight-green' : ''}`}>
-                    {kv.val}
-                  </span>
+                )}
+                {el.conditions && (
+                  <div className="rich-rule-condition">
+                    <span style={{ color: '#64748b', marginRight: '6px' }}>Condition:</span>
+                    {el.conditions}
+                  </div>
                 )}
               </div>
             );
-          })}
-        </div>
-      )}
+          }
 
-      {numberedSteps.length > 0 && (
-        <div className="catalog-items-list" style={{ marginBottom: '16px' }}>
-          {numberedSteps.map((step, idx) => (
-            <div key={idx} className="catalog-item-row" style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-              <span className="portal-badge" style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>
-                #{step.num}
-              </span>
-              <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
-                {renderFormattedText(step.text)}
+          case 'kv': {
+            return (
+              <div key={idx} className="portal-kv-grid" style={{ margin: '10px 0' }}>
+                {el.pairs.map((kv, kIdx) => {
+                  const isCurrency = /\$[0-9,.]+|₹[0-9,.]+|€[0-9,.]+/i.test(kv.val);
+                  const isStatus = /^(active|completed|in progress|pending|approved|closed|open|failed|success|online)$/i.test(
+                    kv.val
+                  );
+                  const uuidMatch = kv.val.match(
+                    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+                  );
+
+                  return (
+                    <div key={kIdx} className="portal-kv-card">
+                      <span className="portal-k-label">{kv.key}</span>
+                      {uuidMatch ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{kv.val.replace(uuidMatch[0], '').trim()}</span>
+                          <UuidBadge uuid={uuidMatch[0]} />
+                        </div>
+                      ) : isStatus ? (
+                        <span className="portal-badge">{kv.val}</span>
+                      ) : (
+                        <span className={`portal-v-value ${isCurrency ? 'highlight-green' : ''}`}>
+                          {kv.val}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            );
+          }
 
-      {bullets.length > 0 && (
-        <div className="catalog-items-list" style={{ marginBottom: '16px' }}>
-          {bullets.map((b, idx) => (
-            <div key={idx} className="catalog-item-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ color: '#38bdf8', fontSize: '14px' }}>•</span>
-              <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1' }}>
-                {renderFormattedText(b)}
+          case 'step': {
+            return (
+              <div
+                key={idx}
+                className="catalog-item-row"
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', margin: '6px 0' }}
+              >
+                <span
+                  className="portal-badge"
+                  style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}
+                >
+                  #{el.num}
+                </span>
+                <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  {renderFormattedInline(el.text, true)}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            );
+          }
 
-      {paragraphs.length > 0 && (
-        <div className="prose-body">
-          {paragraphs.map((p, idx) => (
-            <p key={idx} className="prose-paragraph" style={{ margin: '0 0 10px 0', fontSize: '13px', lineHeight: '1.6', color: '#cbd5e1' }}>
-              {renderFormattedText(p)}
-            </p>
-          ))}
-        </div>
-      )}
+          case 'bullet': {
+            return (
+              <div
+                key={idx}
+                className="catalog-item-row"
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '4px 0' }}
+              >
+                <span style={{ color: '#38bdf8', fontSize: '14px', flexShrink: 0 }}>•</span>
+                <div style={{ flex: 1, fontSize: '13px', color: '#cbd5e1' }}>
+                  {renderFormattedInline(el.text, true)}
+                </div>
+              </div>
+            );
+          }
+
+          case 'prose': {
+            return (
+              <p
+                key={idx}
+                style={{ margin: '0 0 10px 0', fontSize: '13px', lineHeight: '1.6', color: '#cbd5e1' }}
+              >
+                {renderFormattedInline(el.text, true)}
+              </p>
+            );
+          }
+
+          default:
+            return null;
+        }
+      })}
     </div>
   );
 }

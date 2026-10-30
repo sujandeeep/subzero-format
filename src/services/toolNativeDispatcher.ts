@@ -512,7 +512,14 @@ export function computePipelineKpis(rows: PipelineRow[]): PipelineSummaryKpis {
  * Parses a standard markdown pipe table (| Col 1 | Col 2 |) into a PipelineTableBlock
  */
 export function parseMarkdownPipeTable(text: string): PipelineTableBlock | null {
-  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('|') && l.endsWith('|'));
+  if (text.match(/^(?:\*\*)?(?:Ticket|License)\s*#\d+/i) || text.includes('opportunity_id') || text.includes('Opportunity Details')) {
+    return null;
+  }
+  const allLines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (allLines.length === 0) return null;
+  if (!allLines[0].startsWith('|')) return null;
+
+  const lines = allLines.filter((l) => l.startsWith('|') && l.endsWith('|'));
   if (lines.length < 3) return null;
 
   const isDivider = /^\|(?:\s*:?-+:?\s*\|)+$/.test(lines[1]);
@@ -1173,29 +1180,51 @@ export function dispatchToolNativeBlock(
       items,
     };
   }
-  // 3. SAM LICENSE TICKET (Items 7, 8)
-  else if (firstLine.includes('**License #') || text.includes('SAM fulfillment handoff')) {
-    const ticketMatch = text.match(/License\s+#(\d+)/i);
+  // 3. SERVICE / LICENSE / SUPPORT TICKET (Items 7, 8, or user tickets)
+  else if (
+    text.match(/^(?:\*\*)?(?:License|Ticket)\s*#\d+/i) ||
+    text.includes('SAM fulfillment handoff') ||
+    text.match(/(?:Ticket|License)\s+#\d+:/i)
+  ) {
+    const ticketMatch = text.match(/(?:Ticket|License)\s+#(\d+)/i);
     const ticketNumber = ticketMatch ? ticketMatch[1] : '';
-    const statusMatch = text.match(/Status:\s*([^\s|\n]+)/i);
-    const priorityMatch = text.match(/Priority:\s*([^\n]+)/i);
-    const groupMatch = text.match(/Group:\s*([^\n]+)/i);
-    const customerMatch = text.match(/Customer:\s*([^\n]+)/i);
-    const createdMatch = text.match(/Created:\s*([^\n]+)/i);
-    const updatedMatch = text.match(/Updated:\s*([^\n]+)/i);
-    const samMatch = text.match(/SAM request:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    const statusMatch = text.match(/(?:Status|status):\s*([^\s|\n]+)/i);
+    const priorityMatch = text.match(/(?:Priority|priority):\s*([^\n]+)/i);
+    const groupMatch = text.match(/(?:Group|group):\s*([^\n]+)/i);
+    const customerMatch = text.match(/(?:Customer|customer):\s*([^\n]+)/i);
+    const createdMatch = text.match(/(?:Created|created):\s*([^\n]+)/i);
+    const updatedMatch = text.match(/(?:Updated|updated):\s*([^\n]+)/i);
+    const samMatch =
+      text.match(/(?:SAM request|resource work|HITL):\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) ||
+      text.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
     const resourceMatch = text.match(/Resource work:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
 
-    const firstLineClean = firstLine.replace(/^\*\*License\s*#\d+\*\*:\s*/i, '').trim();
+    const firstLineClean = firstLine
+      .replace(/^(?:\*\*)?(?:License|Ticket)\s*#\d+(?:\*\*)?:\s*/i, '')
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '')
+      .replace(/:\s*$/, '')
+      .replace(/:\s*\(/g, ' (')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\(\s*\)/g, '')
+      .trim();
 
-    const comments: { author: string; date: string; text: string }[] = [];
-    const commentBlockMatch = text.match(/Comments\s*&\s*Activity History:\s*([\s\S]*)$/i);
+    const comments: TicketComment[] = [];
+
+    // Parse comments: either "Comments & Activity History:" or "Public comments:"
+    const commentBlockMatch = text.match(/(?:Comments\s*&\s*Activity History|Public comments):\s*([\s\S]*)$/i);
     if (commentBlockMatch) {
       const cText = commentBlockMatch[1];
-      const authorMatch = cText.match(/-\s*\*\*([^*]+)\*\*\s*\(([^)]+)\)/i);
-      const author = authorMatch ? authorMatch[1].trim() : '';
-      const date = authorMatch ? authorMatch[2].trim() : '';
-      const bodyText = cText.replace(/^-\s*\*\*[^*]+\*\*\s*\([^)]+\)[^\n]*\n?/i, '').trim();
+      const authorMatch = cText.match(/-\s*\*\*([^*]+)\*\*\s*\(([^)]+)\)/i) || cText.match(/Author:\s*([^\n]+)/i);
+      const dateMatch = cText.match(/(?:Timestamp|Date):\s*([^\n]+)/i);
+      const bodyMatch = cText.match(/Body:\s*([\s\S]*)$/i);
+
+      const author = authorMatch ? cleanMd(authorMatch[1].trim()) : 'Admin';
+      const date = dateMatch ? dateMatch[1].trim() : (authorMatch && authorMatch[2] ? authorMatch[2].trim() : '');
+      let bodyText = bodyMatch ? bodyMatch[1].trim() : cText.replace(/^-\s*\*\*[^*]+\*\*\s*\([^)]+\)[^\n]*\n?/i, '').trim();
+
+      // Separate trailing action item like "1. Add a comment to ticket #75498"
+      bodyText = bodyText.replace(/\n\s*1\.\s+Add a comment[^\n]*/i, '').trim();
+
       if (author || bodyText) {
         comments.push({ author, date, text: bodyText });
       }
@@ -1204,7 +1233,7 @@ export function dispatchToolNativeBlock(
     block = {
       blockType: 'LICENSE_TICKET',
       ticketNumber,
-      title: firstLineClean || (ticketNumber ? `License #${ticketNumber}` : 'License Request'),
+      title: firstLineClean || (ticketNumber ? `Ticket #${ticketNumber}` : 'Support Ticket'),
       status: statusMatch ? statusMatch[1].trim() : '',
       priority: priorityMatch ? priorityMatch[1].trim() : '',
       group: groupMatch ? groupMatch[1].trim() : '',
