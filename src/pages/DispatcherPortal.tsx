@@ -109,6 +109,33 @@ export const DispatcherPortal: React.FC = () => {
 
   const handleProcess = useCallback(() => {
     if (!activeText.trim()) return;
+
+    let textToProcess = activeText.trim();
+    if (textToProcess.includes('\\n') || (textToProcess.startsWith('"') && textToProcess.endsWith('"'))) {
+      try {
+        const parsed = JSON.parse(textToProcess);
+        if (typeof parsed === 'string') {
+          textToProcess = parsed;
+          setCustomInput(textToProcess);
+        }
+      } catch {
+        if (
+          (textToProcess.startsWith('"') && textToProcess.endsWith('"')) ||
+          (textToProcess.startsWith("'") && textToProcess.endsWith("'"))
+        ) {
+          textToProcess = textToProcess.slice(1, -1);
+        }
+        if (textToProcess.includes('\\n')) {
+          textToProcess = textToProcess
+            .replace(/\\r\\n/g, '\n')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\"/g, '"');
+        }
+        setCustomInput(textToProcess);
+      }
+    }
+
     setJustProcessed(true);
     setTimeout(() => setJustProcessed(false), 1400);
     // Automatically reveal the formatted output tab

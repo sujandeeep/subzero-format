@@ -418,6 +418,32 @@ export function sanitizeInput(text: string): { clean: string; sanitized: boolean
   let clean = text;
   let sanitized = false;
 
+  // Unescape outer quotes and escaped string literals like \n, \t, \"
+  const trimmed = clean.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
+  ) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'string') {
+        clean = parsed;
+        sanitized = true;
+      } else {
+        clean = trimmed.slice(1, -1);
+        sanitized = true;
+      }
+    } catch {
+      clean = trimmed.slice(1, -1);
+      sanitized = true;
+    }
+  }
+
+  if (clean.includes('\\n')) {
+    clean = clean.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+    sanitized = true;
+  }
+
   if (/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(clean) || /javascript:/gi.test(clean)) {
     clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/javascript:/gi, '');
     sanitized = true;
