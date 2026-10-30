@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Sparkles,
+  Copy,
+  Check,
+  RotateCcw,
+  Trash2,
+  Columns,
+  Hash,
+} from 'lucide-react';
 import { JEEVES_100_ITEMS } from '../data/loader';
 import {
   dispatchToolNativeBlock,
@@ -15,100 +26,289 @@ import {
   type SystemAlertBlock,
   type ProseBlock,
 } from '../services/toolNativeDispatcher';
+import { UuidBadge } from '../components/UuidBadge';
 import './DispatcherPortal.css';
 
 export const DispatcherPortal: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [customInput, setCustomInput] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<'input' | 'output'>('output');
+  const [desktopView, setDesktopView] = useState<'split' | 'input' | 'output'>('split');
+  const [copiedRaw, setCopiedRaw] = useState<boolean>(false);
+
+  // Swipe detection for mobile navigation
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
 
   const totalItems = JEEVES_100_ITEMS.length;
-  const activeText = customInput !== null ? customInput : (JEEVES_100_ITEMS[currentIndex]?.message || '');
+  const originalText = JEEVES_100_ITEMS[currentIndex]?.message || '';
+  const activeText = customInput !== null ? customInput : originalText;
+  const isCustomized = customInput !== null && customInput !== originalText;
 
   const dispatchResult = dispatchToolNativeBlock(currentIndex + 1, activeText);
   const block: ToolNativeBlock = dispatchResult.block;
 
   // Arrow navigation
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     setCustomInput(null);
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
-  };
+  }, [totalItems]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setCustomInput(null);
     setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
-  };
+  }, [totalItems]);
 
   // Keyboard navigation: Left and Right arrows
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'ArrowLeft') {
-        setCustomInput(null);
-        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
+        handlePrev();
       }
       if (e.key === 'ArrowRight') {
-        setCustomInput(null);
-        setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+        handleNext();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [totalItems]);
+  }, [handlePrev, handleNext]);
+
+  // Touch swipe handling
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    const deltaY = e.changedTouches[0].clientY - touchStartY;
+
+    // Trigger swipe if horizontal movement is > 70px and predominantly horizontal
+    if (Math.abs(deltaX) > 70 && Math.abs(deltaX) > Math.abs(deltaY) * 1.6) {
+      if (deltaX < 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  const handleCopyRaw = () => {
+    navigator.clipboard.writeText(activeText);
+    setCopiedRaw(true);
+    setTimeout(() => setCopiedRaw(false), 1800);
+  };
+
+  const handleReset = () => {
+    setCustomInput(null);
+  };
+
+  const handleClear = () => {
+    setCustomInput('');
+  };
 
   return (
-    <div className="portal-root">
-      {/* HEADER: ONLY ARROW CONTROLS TO 1 TO 100 */}
+    <div
+      className={`portal-root mobile-tab-${mobileTab} desktop-view-${desktopView}`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* HEADER: NUMBER NAVIGATION + RAW/OUTPUT BUTTONS */}
       <header className="portal-header">
-        <button
-          className="nav-arrow-btn"
-          onClick={handlePrev}
-          aria-label="Previous"
-        >
-          <ChevronLeft size={18} />
-        </button>
+        <div className="header-nav-group">
+          <button
+            className="nav-arrow-btn"
+            onClick={handlePrev}
+            aria-label="Previous Item"
+            title="Previous (Left Arrow)"
+          >
+            <ChevronLeft size={18} />
+          </button>
 
-        <div className="nav-counter">
-          <input
-            type="number"
-            min={1}
-            max={totalItems}
-            value={currentIndex + 1}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val) && val >= 1 && val <= totalItems) {
-                setCustomInput(null);
-                setCurrentIndex(val - 1);
-              }
-            }}
-            className="nav-input-num"
-          />
-          <span>/ {totalItems}</span>
+          <div className="nav-counter">
+            <input
+              type="number"
+              min={1}
+              max={totalItems}
+              value={currentIndex + 1}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1 && val <= totalItems) {
+                  setCustomInput(null);
+                  setCurrentIndex(val - 1);
+                }
+              }}
+              className="nav-input-num"
+              aria-label="Current Item Number"
+            />
+            <span className="nav-counter-total">/ {totalItems}</span>
+          </div>
+
+          <button
+            className="nav-arrow-btn"
+            onClick={handleNext}
+            aria-label="Next Item"
+            title="Next (Right Arrow)"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
-        <button
-          className="nav-arrow-btn"
-          onClick={handleNext}
-          aria-label="Next"
-        >
-          <ChevronRight size={18} />
-        </button>
+        {/* VIEW BUTTONS: RAW INPUT BUTTON & FORMATTED OUTPUT BUTTON */}
+        <div className="header-view-toggle">
+          <button
+            type="button"
+            className={`view-btn ${mobileTab === 'input' ? 'is-active' : ''}`}
+            onClick={() => {
+              setMobileTab('input');
+              setDesktopView('input');
+            }}
+            aria-label="Raw Input View"
+            aria-pressed={mobileTab === 'input'}
+          >
+            <FileText size={15} />
+            <span className="view-btn-text">Raw Input</span>
+            <span className="view-btn-pill">{activeText.length} chars</span>
+          </button>
+
+          <button
+            type="button"
+            className={`view-btn ${mobileTab === 'output' ? 'is-active' : ''}`}
+            onClick={() => {
+              setMobileTab('output');
+              setDesktopView('output');
+            }}
+            aria-label="Formatted Output View"
+            aria-pressed={mobileTab === 'output'}
+          >
+            <Sparkles size={15} />
+            <span className="view-btn-text">Formatted Output</span>
+            <span className="view-btn-pill badge-pill">
+              {block.blockType.replace('_', ' ')}
+            </span>
+          </button>
+
+          {/* DESKTOP SPLIT VIEW BUTTON */}
+          <button
+            type="button"
+            className={`view-btn desktop-only-btn ${desktopView === 'split' ? 'is-active' : ''}`}
+            onClick={() => setDesktopView('split')}
+            aria-label="Desktop Split View"
+            title="Side-by-side view"
+          >
+            <Columns size={15} />
+            <span className="view-btn-text">Split</span>
+          </button>
+        </div>
       </header>
 
-      {/* SPLIT BODY: INPUT AT LEFT (PASTEABLE), OUTPUT AT RIGHT */}
+      {/* MOBILE QUICK TAB BAR (VISIBLE ON MOBILE FOR ONE-TOUCH SWITCHING) */}
+      <nav className="mobile-view-nav" aria-label="Mobile View Selection">
+        <button
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'input' ? 'active' : ''}`}
+          onClick={() => setMobileTab('input')}
+        >
+          <FileText size={16} />
+          <span>Raw Input</span>
+          <span className="tab-pill">{activeText.length}c</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'output' ? 'active' : ''}`}
+          onClick={() => setMobileTab('output')}
+        >
+          <Sparkles size={16} />
+          <span>Formatted Output</span>
+          <span className="tab-pill active-type-pill">
+            {block.blockType.replace('_', ' ')}
+          </span>
+        </button>
+      </nav>
+
+      {/* BODY CONTAINER: INPUT (LEFT) | OUTPUT (RIGHT) */}
       <div className="portal-split-body">
-        {/* LEFT: INPUT */}
-        <section className="portal-panel left-panel">
-          <textarea
-            className="raw-input-textarea"
-            value={activeText}
-            onChange={(e) => setCustomInput(e.target.value)}
-            placeholder="Paste your boss's raw input message here..."
-            spellCheck={false}
-          />
+        {/* LEFT PANEL: RAW INPUT */}
+        <section
+          className={`portal-panel left-panel ${mobileTab === 'input' ? 'mobile-visible' : 'mobile-hidden'}`}
+          aria-label="Raw Input Editor"
+        >
+          <div className="panel-toolbar">
+            <div className="toolbar-info">
+              <span className="toolbar-tag">SOURCE INPUT</span>
+              {isCustomized && <span className="toolbar-modified-tag">MODIFIED</span>}
+            </div>
+
+            <div className="toolbar-actions">
+              {isCustomized && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={handleReset}
+                  title="Reset to original Jeeves item"
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset</span>
+                </button>
+              )}
+              {activeText.length > 0 && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={handleClear}
+                  title="Clear input"
+                >
+                  <Trash2 size={13} />
+                  <span>Clear</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className={`toolbar-btn ${copiedRaw ? 'copied' : ''}`}
+                onClick={handleCopyRaw}
+                title="Copy raw text to clipboard"
+              >
+                {copiedRaw ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copiedRaw ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="raw-input-scroll-wrap">
+            <textarea
+              className="raw-input-textarea"
+              value={activeText}
+              onChange={(e) => setCustomInput(e.target.value)}
+              placeholder="Paste raw unstructured agent or boss message here..."
+              spellCheck={false}
+              aria-label="Raw input text"
+            />
+          </div>
         </section>
 
-        {/* RIGHT: OUTPUT */}
-        <section className="portal-panel right-panel">
+        {/* RIGHT PANEL: FORMATTED OUTPUT */}
+        <section
+          className={`portal-panel right-panel ${mobileTab === 'output' ? 'mobile-visible' : 'mobile-hidden'}`}
+          aria-label="Formatted Deterministic Output"
+        >
+          <div className="panel-toolbar right-toolbar">
+            <div className="toolbar-info">
+              <span className="toolbar-tag output-tag">STRUCTURED OUTPUT</span>
+              <span className="toolbar-type-badge">{block.blockType}</span>
+            </div>
+
+            <div className="toolbar-actions">
+              <span className="toolbar-tip">
+                <Hash size={12} style={{ color: '#38bdf8' }} /> UUIDs hide under #
+              </span>
+            </div>
+          </div>
+
           <div className="panel-scroll-area">
             {renderOutputBlock(block)}
           </div>
@@ -119,7 +319,7 @@ export const DispatcherPortal: React.FC = () => {
 };
 
 // ============================================================================
-// OUTPUT RENDERERS (STRICT RAW DATA FIDELITY - ZERO EXTRA FEATURES & TEXTS)
+// OUTPUT RENDERERS (CLEAN ZERO-LATENCY NATIVE DISPLAY WITH UUID HASHTAGS)
 // ============================================================================
 
 function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
@@ -134,14 +334,16 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
             {blk.items.map((item) => (
               <div key={item.id} className="catalog-item-card">
                 <div className="catalog-card-header">
-                  <span className="catalog-card-title">
-                    {item.num}. {item.name}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="catalog-card-title">
+                      {item.num}. {item.name}
+                    </span>
+                    <UuidBadge uuid={item.id} />
+                  </div>
                   {item.publisher && (
                     <span className="catalog-card-publisher">{item.publisher}</span>
                   )}
                 </div>
-                <div className="catalog-card-uuid">{item.id}</div>
               </div>
             ))}
           </div>
@@ -156,6 +358,7 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
         <div className="output-card">
           {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
           <div className="portal-table-container">
+            <div className="table-mobile-hint">Swipe horizontally to view full table &rarr;</div>
             <table className="portal-table">
               <thead>
                 <tr>
@@ -169,14 +372,61 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                   <tr key={row.id}>
                     {blk.columns.map((col, cIdx) => {
                       if (col === '#') return <td key={cIdx}>{row.num}</td>;
-                      if (col === 'Opportunity Name') return <td key={cIdx} style={{ fontWeight: 600 }}>{row.name}</td>;
-                      if (col === 'Opportunity UUID') return <td key={cIdx} className="portal-uuid-text">{row.id}</td>;
-                      if (col === 'Company') return <td key={cIdx}>{row.company || row.fields?.['Company'] || '—'}</td>;
-                      if (col === 'Deal Value') return <td key={cIdx} style={{ color: '#34d399' }}>{row.dealValue || row.fields?.['Deal Value'] || '—'}</td>;
-                      if (col === 'Close Date') return <td key={cIdx}>{row.closeDate || row.fields?.['Close Date'] || '—'}</td>;
-                      if (col === 'Health Score') return <td key={cIdx}>{row.healthScore || row.fields?.['Health Score'] || '—'}</td>;
-                      if (col === 'Labels') return <td key={cIdx}>{row.labels.join(', ') || '—'}</td>;
-                      return <td key={cIdx}>{row.fields?.[col] || '—'}</td>;
+                      if (col === 'Opportunity Name') {
+                        return (
+                          <td key={cIdx} style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <span>{row.name}</span>
+                              <UuidBadge uuid={row.id} />
+                            </div>
+                          </td>
+                        );
+                      }
+                      if (col === 'Opportunity UUID') {
+                        return (
+                          <td key={cIdx} className="portal-uuid-cell">
+                            <UuidBadge uuid={row.id} />
+                          </td>
+                        );
+                      }
+                      if (col === 'Company') {
+                        return <td key={cIdx}>{row.company || row.fields?.['Company'] || '—'}</td>;
+                      }
+                      if (col === 'Deal Value') {
+                        return (
+                          <td key={cIdx} style={{ color: '#34d399', fontWeight: 600 }}>
+                            {row.dealValue || row.fields?.['Deal Value'] || '—'}
+                          </td>
+                        );
+                      }
+                      if (col === 'Close Date') {
+                        return <td key={cIdx}>{row.closeDate || row.fields?.['Close Date'] || '—'}</td>;
+                      }
+                      if (col === 'Health Score') {
+                        return (
+                          <td key={cIdx} style={{ color: '#38bdf8' }}>
+                            {row.healthScore || row.fields?.['Health Score'] || '—'}
+                          </td>
+                        );
+                      }
+                      if (col === 'Labels') {
+                        return <td key={cIdx}>{row.labels.join(', ') || '—'}</td>;
+                      }
+
+                      // Check if generic field value looks like a UUID
+                      const val = row.fields?.[col] || '—';
+                      if (
+                        typeof val === 'string' &&
+                        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim())
+                      ) {
+                        return (
+                          <td key={cIdx} className="portal-uuid-cell">
+                            <UuidBadge uuid={val.trim()} />
+                          </td>
+                        );
+                      }
+
+                      return <td key={cIdx}>{val}</td>;
                     })}
                   </tr>
                 ))}
@@ -192,14 +442,17 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
       const blk = block as Deal360Block;
       return (
         <div className="output-card">
-          {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
+            {blk.opportunityId && <UuidBadge uuid={blk.opportunityId} />}
+          </div>
           {blk.description && <p className="output-desc">{blk.description}</p>}
 
           <div className="portal-kv-grid">
             {blk.opportunityId && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Opportunity UUID</span>
-                <span className="portal-uuid-text">{blk.opportunityId}</span>
+                <UuidBadge uuid={blk.opportunityId} />
               </div>
             )}
 
@@ -213,7 +466,7 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
             {blk.company?.companyId && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Company ID</span>
-                <span className="portal-uuid-text">{blk.company.companyId}</span>
+                <UuidBadge uuid={blk.company.companyId} />
               </div>
             )}
 
@@ -255,7 +508,9 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
             {blk.aiProbability?.score && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">AI Probability</span>
-                <span className="portal-v-value" style={{ color: '#c084fc' }}>{blk.aiProbability.score}</span>
+                <span className="portal-v-value" style={{ color: '#c084fc' }}>
+                  {blk.aiProbability.score}
+                </span>
               </div>
             )}
 
@@ -289,7 +544,6 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Product UUID</th>
                     <th>Qty</th>
                     <th>Price</th>
                   </tr>
@@ -297,10 +551,14 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
                 <tbody>
                   {blk.lineItems.map((li, idx) => (
                     <tr key={idx}>
-                      <td style={{ fontWeight: 600 }}>{li.title}</td>
-                      <td className="portal-uuid-text">{li.productId || '—'}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>{li.title}</span>
+                          {li.productId && <UuidBadge uuid={li.productId} />}
+                        </div>
+                      </td>
                       <td>{li.quantity}</td>
-                      <td style={{ color: '#34d399' }}>{li.price}</td>
+                      <td style={{ color: '#34d399', fontWeight: 600 }}>{li.price}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -340,9 +598,14 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
               {blk.activities.map((act) => (
                 <div key={act.id} className="catalog-item-row">
                   <div className="catalog-item-header">
-                    <span className="catalog-item-name">{act.title}</span>
-                    <span className="portal-badge">{act.type}</span>
-                    <span className="portal-badge">{act.status}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="catalog-item-name">{act.title}</span>
+                      {act.id && <UuidBadge uuid={act.id} />}
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <span className="portal-badge">{act.type}</span>
+                      <span className="portal-badge">{act.status}</span>
+                    </div>
                   </div>
                   {act.description && <p className="output-desc">{act.description}</p>}
                 </div>
@@ -358,21 +621,24 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
       const blk = block as SoftwareSpecBlock;
       return (
         <div className="output-card">
-          {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {blk.title && <h2 className="output-main-title">{blk.title}</h2>}
+            {blk.softwareId && <UuidBadge uuid={blk.softwareId} />}
+          </div>
           {blk.description && <p className="output-desc">{blk.description}</p>}
 
           <div className="portal-kv-grid">
             {blk.softwareId && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Software UUID</span>
-                <span className="portal-uuid-text">{blk.softwareId}</span>
+                <UuidBadge uuid={blk.softwareId} />
               </div>
             )}
 
             {blk.revisionId && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Revision UUID</span>
-                <span className="portal-uuid-text">{blk.revisionId}</span>
+                <UuidBadge uuid={blk.revisionId} />
               </div>
             )}
 
@@ -424,7 +690,12 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
               {Object.entries(blk.attributes).map(([k, v]) => (
                 <div key={k} className="portal-kv-card">
                   <span className="portal-k-label">{k}</span>
-                  <span className="portal-v-value">{v}</span>
+                  {typeof v === 'string' &&
+                  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim()) ? (
+                    <UuidBadge uuid={v.trim()} />
+                  ) : (
+                    <span className="portal-v-value">{v}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -438,14 +709,11 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
       const blk = block as FormGateBlock;
       return (
         <div className="output-card">
-          {blk.softwareTitle && <h2 className="output-main-title">{blk.softwareTitle}</h2>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {blk.softwareTitle && <h2 className="output-main-title">{blk.softwareTitle}</h2>}
+            {blk.softwareId && <UuidBadge uuid={blk.softwareId} />}
+          </div>
           {blk.prompt && <p className="output-desc">{blk.prompt}</p>}
-
-          {blk.softwareId && (
-            <div className="portal-uuid-text" style={{ marginBottom: '12px' }}>
-              {blk.softwareId}
-            </div>
-          )}
 
           <div className="catalog-items-list">
             {blk.fields.map((f, idx) => (
@@ -481,7 +749,12 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
               {Object.entries(blk.details).map(([k, v]) => (
                 <div key={k} className="portal-kv-card">
                   <span className="portal-k-label">{k}</span>
-                  <span className="portal-v-value">{v}</span>
+                  {typeof v === 'string' &&
+                  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim()) ? (
+                    <UuidBadge uuid={v.trim()} />
+                  ) : (
+                    <span className="portal-v-value">{v}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -543,13 +816,13 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
             {blk.samRequestUuid && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">SAM Request UUID</span>
-                <span className="portal-uuid-text">{blk.samRequestUuid}</span>
+                <UuidBadge uuid={blk.samRequestUuid} />
               </div>
             )}
             {blk.resourceWorkUuid && (
               <div className="portal-kv-card">
                 <span className="portal-k-label">Resource Work UUID</span>
-                <span className="portal-uuid-text">{blk.resourceWorkUuid}</span>
+                <UuidBadge uuid={blk.resourceWorkUuid} />
               </div>
             )}
           </div>
@@ -639,3 +912,5 @@ function renderOutputBlock(block: ToolNativeBlock): React.ReactNode {
     }
   }
 }
+
+export default DispatcherPortal;

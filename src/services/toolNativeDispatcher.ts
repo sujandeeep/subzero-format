@@ -11,6 +11,7 @@ export interface CatalogItem {
   num: number;
   name: string;
   id: string; // Full 36-char software UUID
+  maskedId?: MaskedUuid;
   publisher: string;
   requiresConfirmation: boolean;
 }
@@ -27,6 +28,7 @@ export interface CatalogGridBlock {
 export interface PipelineRow {
   num: number;
   id: string;
+  maskedId?: MaskedUuid;
   name: string;
   dealValue: string;
   closeDate: string;
@@ -59,6 +61,7 @@ export interface PipelineTableBlock {
 // 3. Deal 360 View
 export interface DealActivity {
   id: string;
+  maskedId?: MaskedUuid;
   type: string;
   title: string;
   status: string;
@@ -81,9 +84,11 @@ export interface Deal360Block {
   title: string;
   description?: string;
   opportunityId: string;
+  maskedOpportunityId?: MaskedUuid;
   company: {
     name: string;
     companyId?: string;
+    maskedCompanyId?: MaskedUuid;
     profile?: string;
   };
   owner: string;
@@ -99,6 +104,7 @@ export interface Deal360Block {
   lineItems: Array<{
     title: string;
     productId?: string;
+    maskedProductId?: MaskedUuid;
     quantity: string;
     price: string;
   }>;
@@ -113,7 +119,9 @@ export interface SoftwareSpecBlock {
   blockType: 'SOFTWARE_SPEC';
   title: string;
   softwareId: string;
+  maskedSoftwareId?: MaskedUuid;
   revisionId?: string;
+  maskedRevisionId?: MaskedUuid;
   publisher: string;
   description: string;
   licensingUnit: string;
@@ -142,6 +150,7 @@ export interface FormGateBlock {
   blockType: 'FORM_GATE';
   softwareTitle: string;
   softwareId?: string;
+  maskedSoftwareId?: MaskedUuid;
   prompt: string;
   fields: FormField[];
 }
@@ -180,7 +189,9 @@ export interface LicenseTicketBlock {
   created: string;
   updated: string;
   samRequestUuid?: string;
+  maskedSamRequestUuid?: MaskedUuid;
   resourceWorkUuid?: string;
+  maskedResourceWorkUuid?: MaskedUuid;
   action?: string;
   comments: TicketComment[];
 }
@@ -229,6 +240,61 @@ export type ToolNativeBlock =
   | ProseBlock
   | WorkflowAuditBlock;
 
+export interface MaskedUuid {
+  /** The full 36-character UUID string (e.g. "e70b77bc-0645-4a35-8c13-3d56cbdd615a") */
+  readonly id: string;
+  /** The hashtag representation */
+  readonly hashtag: '#';
+  /** Short reference (e.g. "#e70b77bc") */
+  readonly short: string;
+  /** Reveal the full raw UUID */
+  reveal(): string;
+  /** Defaults to '#' when converted to string or printed */
+  toString(): string;
+  /** JSON serialization preserves the raw UUID */
+  toJSON(): string;
+}
+
+/**
+ * Creates a pure TypeScript MaskedUuid object with hashtag hiding and programmatic reveal
+ */
+export function toMaskedUuid(uuid: string): MaskedUuid {
+  const cleanId = String(uuid || '').trim();
+  return {
+    id: cleanId,
+    hashtag: '#',
+    short: cleanId.length >= 8 ? `#${cleanId.slice(0, 8)}` : '#',
+    reveal: () => cleanId,
+    toString: () => '#',
+    toJSON: () => cleanId,
+  };
+}
+
+/**
+ * Validates if a value is a valid UUID format
+ */
+export function isUuid(str: unknown): str is string {
+  if (typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+/**
+ * Pure TypeScript utility to mask all UUID occurrences in any text string with '#'
+ */
+export function maskUuidsInText(text: string, replacer?: (uuid: string) => string): string {
+  const rep = replacer || (() => '#');
+  return text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (match) => rep(match));
+}
+
+/**
+ * Standalone zero-CSS HTML representation of a UUID hidden behind a clickable '#' hashtag.
+ * Uses native HTML <details><summary> tags supported by all modern browsers out of the box.
+ */
+export function toInteractiveHashtagHtml(uuid: string): string {
+  if (!uuid) return '—';
+  return `<details style="display:inline-block;vertical-align:middle;cursor:pointer"><summary style="list-style:none;display:inline-block;padding:1px 6px;border-radius:4px;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-family:monospace;font-weight:700;font-size:12px;user-select:none" title="Click to reveal ID">#</summary><span style="margin-left:6px;font-family:monospace;color:#38bdf8;font-size:12px;word-break:break-all">${uuid}</span></details>`;
+}
+
 export interface ToolNativeExecutionTrace {
   startedAt: string;
   completedAt: string;
@@ -237,6 +303,7 @@ export interface ToolNativeExecutionTrace {
   networkHops: 0;
   costUsd: 0;
   preservedUuids: string[];
+  maskedUuids: MaskedUuid[];
   totalUuidsFound: number;
   validationStatus: 'PASSED';
   detectedFormat?: 'COLON_LIST' | 'MARKDOWN_TABLE' | 'CSV_TSV' | 'JSON_PAYLOAD' | 'CONVERSATIONAL' | 'STRUCTURED_ENTITY';
@@ -252,7 +319,7 @@ export interface ToolNativeResult {
 
 const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
-function extractAllUuids(text: string): string[] {
+export function extractAllUuids(text: string): string[] {
   const matches = text.match(UUID_REGEX);
   return matches ? Array.from(new Set(matches)) : [];
 }
@@ -478,6 +545,7 @@ export function parseMarkdownPipeTable(text: string): PipelineTableBlock | null 
     rows.push({
       num: rowNum,
       id: rowId,
+      maskedId: toMaskedUuid(rowId),
       name,
       dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : '',
       closeDate: fields['Close Date'] || '',
@@ -547,6 +615,7 @@ export function parseCsvTsvTable(text: string): PipelineTableBlock | null {
     rows.push({
       num: rowNum,
       id: rowId,
+      maskedId: toMaskedUuid(rowId),
       name,
       dealValue: fields['Deal Value'] ? formatCurrencyValue(fields['Deal Value']) : '',
       closeDate: fields['Close Date'] || '',
@@ -777,6 +846,7 @@ export function dispatchToolNativeBlock(
             networkHops: 0,
             costUsd: 0,
             preservedUuids: extractAllUuids(text),
+            maskedUuids: extractAllUuids(text).map(toMaskedUuid),
             totalUuidsFound: extractAllUuids(text).length,
             validationStatus: 'PASSED',
             detectedFormat,
@@ -803,6 +873,7 @@ export function dispatchToolNativeBlock(
         networkHops: 0,
         costUsd: 0,
         preservedUuids: extractAllUuids(text),
+        maskedUuids: extractAllUuids(text).map(toMaskedUuid),
         totalUuidsFound: extractAllUuids(text).length,
         validationStatus: 'PASSED',
         detectedFormat: 'MARKDOWN_TABLE',
@@ -828,6 +899,7 @@ export function dispatchToolNativeBlock(
           networkHops: 0,
           costUsd: 0,
           preservedUuids: extractAllUuids(text),
+          maskedUuids: extractAllUuids(text).map(toMaskedUuid),
           totalUuidsFound: extractAllUuids(text).length,
           validationStatus: 'PASSED',
           detectedFormat: 'CSV_TSV',
@@ -899,6 +971,7 @@ export function dispatchToolNativeBlock(
           num,
           name,
           id,
+          maskedId: toMaskedUuid(id),
           publisher,
           requiresConfirmation: reqMatch ? reqMatch[1].trim().toLowerCase() === 'true' : false,
         });
@@ -954,7 +1027,9 @@ export function dispatchToolNativeBlock(
       created: createdMatch ? createdMatch[1].trim() : '',
       updated: updatedMatch ? updatedMatch[1].trim() : '',
       samRequestUuid: samMatch ? samMatch[1] : undefined,
+      maskedSamRequestUuid: samMatch ? toMaskedUuid(samMatch[1]) : undefined,
       resourceWorkUuid: resourceMatch ? resourceMatch[1] : undefined,
+      maskedResourceWorkUuid: resourceMatch ? toMaskedUuid(resourceMatch[1]) : undefined,
       comments,
     } as LicenseTicketBlock;
   }
@@ -991,6 +1066,7 @@ export function dispatchToolNativeBlock(
       blockType: 'FORM_GATE',
       softwareTitle,
       softwareId: uuidMatch ? uuidMatch[1] : undefined,
+      maskedSoftwareId: uuidMatch ? toMaskedUuid(uuidMatch[1]) : undefined,
       prompt: firstLine,
       fields,
     } as FormGateBlock;
@@ -1124,6 +1200,7 @@ export function dispatchToolNativeBlock(
         rows.push({
           num,
           id: rowId,
+          maskedId: toMaskedUuid(rowId),
           name,
           dealValue: formattedVal,
           closeDate: fields['Close Date'] || '',
@@ -1211,7 +1288,9 @@ export function dispatchToolNativeBlock(
       blockType: 'SOFTWARE_SPEC',
       title,
       softwareId: swUuid ? swUuid[1] : '',
+      maskedSoftwareId: swUuid ? toMaskedUuid(swUuid[1]) : undefined,
       revisionId: revMatch ? revMatch[1] : undefined,
+      maskedRevisionId: revMatch ? toMaskedUuid(revMatch[1]) : undefined,
       publisher: pubMatch ? pubMatch[1].trim() : '',
       description: descMatch ? descMatch[1].trim() : '',
       licensingUnit: unitMatch ? unitMatch[1].trim() : '',
@@ -1333,6 +1412,7 @@ export function dispatchToolNativeBlock(
             lineItems.push({
               title: itemTitle,
               productId: prodUuid ? prodUuid[1] : undefined,
+              maskedProductId: prodUuid ? toMaskedUuid(prodUuid[1]) : undefined,
               quantity: qtyMatch ? qtyMatch[1] : '1',
               price: priceMatch ? cleanMd(priceMatch[1]) : '$0.00',
             });
@@ -1381,6 +1461,7 @@ export function dispatchToolNativeBlock(
 
           activities.push({
             id: uuidMatch ? uuidMatch[1] : `act-${activities.length + 1}`,
+            maskedId: uuidMatch ? toMaskedUuid(uuidMatch[1]) : undefined,
             type: typeMatch ? typeMatch[1].toLowerCase().trim() : 'activity',
             title: actTitle,
             status: statusMatch ? statusMatch[1].toLowerCase().trim() : 'completed',
@@ -1409,6 +1490,7 @@ export function dispatchToolNativeBlock(
         if (!activities.some((a) => a.id === actId)) {
           activities.push({
             id: actId,
+            maskedId: uuidMatch ? toMaskedUuid(uuidMatch[1]) : undefined,
             type: typeMatch ? cleanMd(typeMatch[1]).toLowerCase() : 'activity',
             title: titleMatch ? cleanMd(titleMatch[1]) : cleanMd(header.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '')),
             status: statusMatch ? cleanMd(statusMatch[1]).toLowerCase() : 'completed',
@@ -1455,9 +1537,11 @@ export function dispatchToolNativeBlock(
       title,
       description: descMatch ? cleanMd(descMatch[1]) : undefined,
       opportunityId,
+      maskedOpportunityId: toMaskedUuid(opportunityId),
       company: {
         name: compMatch ? cleanMd(compMatch[1]) : '',
         companyId: compIdMatch ? compIdMatch[1] : undefined,
+        maskedCompanyId: compIdMatch ? toMaskedUuid(compIdMatch[1]) : undefined,
         profile: compProfileMatch ? compProfileMatch[1].trim() : undefined,
       },
       owner: ownerMatch ? cleanMd(ownerMatch[1]) : '',
@@ -1503,6 +1587,7 @@ export function dispatchToolNativeBlock(
       networkHops: 0,
       costUsd: 0,
       preservedUuids: foundUuids,
+      maskedUuids: foundUuids.map(toMaskedUuid),
       totalUuidsFound: foundUuids.length,
       validationStatus: 'PASSED',
       detectedFormat,

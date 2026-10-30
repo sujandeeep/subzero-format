@@ -1,8 +1,5 @@
 /* ==========================================================================
-   DISPATCHER PORTAL - STRICT MINIMALIST SPLIT VIEW
-   Controls: ONLY Arrow marks to 1 to 100
-   Layout: Input (Left) | Output (Right)
-   Zero extra features, zero synthetic texts
+   DISPATCHER PORTAL - RESPONSIVE & MOBILE-OPTIMIZED STYLING
    ========================================================================== */
 
 .portal-root {
@@ -10,43 +7,61 @@
   flex-direction: column;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
-  background-color: #0b0f19;
+  background-color: #080c16;
   color: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* 1. HEADER: ONLY ARROW CONTROLS TO 1 TO 100 */
+/* ==========================================================================
+   1. HEADER NAVIGATION & DESKTOP CONTROLS
+   ========================================================================== */
+
 .portal-header {
-  height: 48px;
-  min-height: 48px;
+  height: 52px;
+  min-height: 52px;
   background: #0f172a;
   border-bottom: 1px solid #1e293b;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  z-index: 10;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 20;
+  box-sizing: border-box;
+}
+
+.header-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .nav-arrow-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   background: #1e293b;
   border: 1px solid #334155;
   color: #f1f5f9;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .nav-arrow-btn:hover {
   background: #334155;
   border-color: #475569;
   color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.nav-arrow-btn:active {
+  transform: translateY(0);
 }
 
 .nav-counter {
@@ -57,71 +72,328 @@
   align-items: center;
   gap: 6px;
   font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 .nav-input-num {
-  width: 44px;
+  width: 48px;
+  height: 32px;
   background: #020617;
   border: 1px solid #334155;
   color: #38bdf8;
   font-weight: 700;
-  font-size: 13px;
-  padding: 3px 6px;
-  border-radius: 4px;
+  font-size: 14px;
+  padding: 0 6px;
+  border-radius: 6px;
   text-align: center;
+  transition: border-color 0.15s ease;
 }
 
 .nav-input-num:focus {
   outline: none;
   border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
-/* 2. SPLIT LAYOUT: INPUT AT LEFT, OUTPUT AT RIGHT */
+.nav-counter-total {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Header View Buttons */
+.header-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #090e1a;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.view-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.view-btn.is-active {
+  background: #1e293b;
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.view-btn-pill {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #64748b;
+  font-weight: 500;
+}
+
+.view-btn.is-active .view-btn-pill {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
+.view-btn-pill.badge-pill {
+  text-transform: capitalize;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   2. MOBILE QUICK TAB BAR (FOR PHONES & TABLETS)
+   ========================================================================== */
+
+.mobile-view-nav {
+  display: none;
+  background: #0d1322;
+  border-bottom: 1px solid #1e293b;
+  padding: 6px 12px;
+  gap: 8px;
+  z-index: 15;
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  background: #111827;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mobile-tab-btn.active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(99, 102, 241, 0.16) 100%);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.2);
+}
+
+.mobile-tab-btn .tab-pill {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.mobile-tab-btn.active .tab-pill {
+  background: rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+}
+
+.mobile-tab-btn .tab-pill.active-type-pill {
+  text-transform: capitalize;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   3. SPLIT BODY & PANELS
+   ========================================================================== */
+
 .portal-split-body {
   flex: 1;
   display: flex;
   overflow: hidden;
-  height: calc(100vh - 48px);
+  height: calc(100vh - 52px);
+  position: relative;
 }
 
 .portal-panel {
-  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  height: 100%;
 }
 
 .portal-panel.left-panel {
+  background: #060911;
   border-right: 1px solid #1e293b;
-  background: #070b14;
 }
 
 .portal-panel.right-panel {
-  background: #0b0f19;
+  background: #0a0e1a;
 }
 
-.panel-scroll-area {
+/* Desktop View Layouts */
+.desktop-view-split .portal-panel {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 20px;
 }
 
-/* 3. LEFT PANEL RAW INPUT (PASTEABLE TEXTAREA) */
+.desktop-view-input .portal-panel.left-panel {
+  flex: 1;
+  border-right: none;
+}
+.desktop-view-input .portal-panel.right-panel {
+  display: none;
+}
+
+.desktop-view-output .portal-panel.left-panel {
+  display: none;
+}
+.desktop-view-output .portal-panel.right-panel {
+  flex: 1;
+}
+
+/* ==========================================================================
+   4. PANEL TOOLBARS
+   ========================================================================== */
+
+.panel-toolbar {
+  height: 38px;
+  min-height: 38px;
+  background: #0b1120;
+  border-bottom: 1px solid #1a2436;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.toolbar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.toolbar-tag.output-tag {
+  color: #38bdf8;
+}
+
+.toolbar-modified-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.toolbar-type-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  letter-spacing: 0.3px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  height: 26px;
+  background: #172033;
+  border: 1px solid #2d3b55;
+  color: #cbd5e1;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover {
+  background: #222f49;
+  border-color: #3d4f70;
+  color: #ffffff;
+}
+
+.toolbar-btn.copied {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.toolbar-tip {
+  font-size: 11px;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   5. RAW INPUT EDITOR (LEFT PANEL)
+   ========================================================================== */
+
+.raw-input-scroll-wrap {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  height: calc(100% - 38px);
+}
+
 .raw-input-textarea {
   width: 100%;
   height: 100%;
-  padding: 20px;
+  padding: 16px;
   background: transparent;
   color: #cbd5e1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   border: none;
   outline: none;
   resize: none;
   box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .raw-input-textarea::placeholder {
@@ -138,16 +410,31 @@
   word-break: break-word;
 }
 
-/* 4. RIGHT PANEL CLEAN OUTPUT CARD */
+/* ==========================================================================
+   6. FORMATTED OUTPUT (RIGHT PANEL)
+   ========================================================================== */
+
+.panel-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  box-sizing: border-box;
+  height: calc(100% - 38px);
+}
+
 .output-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  max-width: 100%;
 }
 
 .output-main-title {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   color: #f8fafc;
   line-height: 1.3;
@@ -157,7 +444,8 @@
   margin: 0;
   font-size: 13px;
   color: #94a3b8;
-  line-height: 1.5;
+  line-height: 1.55;
+  word-break: break-word;
 }
 
 .portal-badge {
@@ -170,13 +458,7 @@
   color: #94a3b8;
   border: 1px solid #334155;
   width: fit-content;
-}
-
-.portal-uuid-text {
-  font-family: ui-monospace, monospace;
-  font-size: 11.5px;
-  color: #38bdf8;
-  word-break: break-all;
+  white-space: nowrap;
 }
 
 /* Catalog Cards Grid */
@@ -194,7 +476,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
@@ -228,15 +510,20 @@
   width: fit-content;
 }
 
-.catalog-card-uuid {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11.5px;
-  color: #9ca3af;
-  background: #090e17;
-  padding: 6px 8px;
-  border-radius: 4px;
-  border: 1px solid #1a2333;
-  word-break: break-all;
+.catalog-card-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid #1a2333;
+}
+
+.card-id-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
 }
 
 /* Catalog list (for other blocks) */
@@ -250,10 +537,10 @@
   background: #131b2e;
   border: 1px solid #1e293b;
   border-radius: 6px;
-  padding: 10px 14px;
+  padding: 11px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .catalog-item-header {
@@ -261,10 +548,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .catalog-item-name {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #f1f5f9;
 }
@@ -273,8 +561,21 @@
 .portal-table-container {
   overflow-x: auto;
   border: 1px solid #1e293b;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #101726;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.table-mobile-hint {
+  display: none;
+  font-size: 11px;
+  color: #64748b;
+  background: #0d1424;
+  padding: 4px 10px;
+  border-bottom: 1px solid #1e293b;
+  font-weight: 500;
 }
 
 .portal-table {
@@ -282,6 +583,7 @@
   border-collapse: collapse;
   font-size: 12.5px;
   text-align: left;
+  min-width: 520px;
 }
 
 .portal-table th {
@@ -290,15 +592,20 @@
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid #1e293b;
   white-space: nowrap;
 }
 
 .portal-table td {
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid #172033;
   color: #e2e8f0;
+  vertical-align: middle;
+}
+
+.portal-table td.portal-uuid-cell {
+  white-space: nowrap;
 }
 
 .portal-table tr:last-child td {
@@ -309,17 +616,18 @@
 .portal-kv-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .portal-kv-card {
   background: #131b2e;
   border: 1px solid #1e293b;
-  border-radius: 6px;
-  padding: 9px 12px;
+  border-radius: 7px;
+  padding: 10px 13px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .portal-k-label {
@@ -327,10 +635,11 @@
   color: #64748b;
   text-transform: uppercase;
   font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .portal-v-value {
-  font-size: 13px;
+  font-size: 13.5px;
   color: #f1f5f9;
   font-weight: 500;
   word-break: break-word;
@@ -352,12 +661,13 @@
 }
 
 .portal-pill {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 5px;
   background: #1e293b;
   color: #cbd5e1;
   border: 1px solid #334155;
+  font-weight: 500;
 }
 
 /* Steps */
@@ -371,10 +681,10 @@
   background: #131b2e;
   border: 1px solid #1e293b;
   border-radius: 6px;
-  padding: 10px 14px;
+  padding: 11px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .portal-step-top {
@@ -385,7 +695,7 @@
 
 .portal-step-tool {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 13.5px;
   color: #f1f5f9;
 }
 
@@ -393,4 +703,105 @@
   margin: 0;
   font-size: 12.5px;
   color: #94a3b8;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   7. RESPONSIVE BREAKPOINTS (TABLETS & MOBILE SMARTPHONES)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .mobile-view-nav {
+    display: flex;
+  }
+
+  .portal-header {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 12px;
+  }
+
+  .desktop-only-btn {
+    display: none !important;
+  }
+
+  .header-view-toggle {
+    display: none;
+  }
+
+  .portal-split-body {
+    height: calc(100vh - 96px);
+    height: calc(100dvh - 96px);
+  }
+
+  .portal-panel.mobile-hidden {
+    display: none !important;
+  }
+
+  .portal-panel.mobile-visible {
+    display: flex !important;
+    width: 100% !important;
+    flex: 1 !important;
+    border-right: none !important;
+  }
+
+  .panel-scroll-area {
+    padding: 14px 12px 32px;
+  }
+
+  .raw-input-textarea {
+    font-size: 16px;
+    padding: 14px 12px;
+  }
+
+  .table-mobile-hint {
+    display: block;
+  }
+
+  .catalog-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .portal-kv-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .output-main-title {
+    font-size: 16px;
+  }
+
+  .portal-kv-card {
+    padding: 8px 10px;
+  }
+
+  .portal-v-value {
+    font-size: 12.5px;
+  }
+
+  .toolbar-tip {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-nav-group {
+    gap: 6px;
+  }
+
+  .nav-arrow-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .nav-input-num {
+    width: 42px;
+    height: 30px;
+    font-size: 13px;
+  }
 }
